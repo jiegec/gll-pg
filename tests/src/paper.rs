@@ -58,12 +58,12 @@ impl Parser {
         S::Eps
     }
     #[rule(A -> Ta)]
-    fn a1(a: LogosToken<PaperToken>) -> A {
+    fn a1(&mut self, a: LogosToken<PaperToken>) -> A {
         self.history.push(A::A);
         A::A
     }
     #[rule(A -> Tc)]
-    fn a2(c: LogosToken<PaperToken>) -> A {
+    fn a2(&mut self, c: LogosToken<PaperToken>) -> A {
         self.history.push(A::C);
         A::C
     }

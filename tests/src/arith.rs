@@ -30,20 +30,26 @@ pub enum Token {
     IntLit,
 }
 
-struct Parser {}
+struct Parser {
+    literals: Vec<i32>,
+}
 
 #[gll(Expr, Token)]
 impl Parser {
+    // you can omit self
     #[rule(Expr -> Expr Add Expr)]
     fn expr_add(l: i32, _op: LogosToken<Token>, r: i32) -> i32 {
         l + r
     }
+    // you can use &self
     #[rule(Expr -> Expr Sub Expr)]
-    fn expr_sub(l: i32, _op: LogosToken<Token>, r: i32) -> i32 {
+    fn expr_sub(&self, l: i32, _op: LogosToken<Token>, r: i32) -> i32 {
         l - r
     }
+    // you can use &mut self as well
+    // but all of these have &mut self in fact
     #[rule(Expr -> Expr Mul Expr)]
-    fn expr_mul(l: i32, _op: LogosToken<Token>, r: i32) -> i32 {
+    fn expr_mul(&mut self, l: i32, _op: LogosToken<Token>, r: i32) -> i32 {
         l * r
     }
     #[rule(Expr -> Expr Div Expr)]
@@ -62,16 +68,19 @@ impl Parser {
     fn expr_paren(_l: LogosToken<Token>, i: i32, _r: LogosToken<Token>) -> i32 {
         i
     }
+    // so you can make your IDE happy with &mut self here
     #[rule(Expr -> IntLit)]
-    fn expr_int(i: LogosToken<Token>) -> i32 {
-        i.slice.parse().unwrap()
+    fn expr_int(&mut self, i: LogosToken<Token>) -> i32 {
+        let lit = i.slice.parse().unwrap();
+        self.literals.push(lit);
+        lit
     }
 }
 
 #[test]
 fn gll() {
     let mut lexer = Token::lexer("1 + 2 * 3");
-    let mut parser = Parser {};
+    let mut parser = Parser { literals: vec![] };
     let res = parser.parse(&mut lexer);
     // two ways to parse
     assert_eq!(res, [7, 9]);
