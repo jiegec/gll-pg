@@ -30,6 +30,8 @@ pub enum Token {
     IntLit,
 }
 
+struct Parser {}
+
 #[gll(Expr, Token)]
 impl Parser {
     #[rule(Expr -> Expr Add Expr)]
@@ -69,7 +71,8 @@ impl Parser {
 #[test]
 fn gll() {
     let mut lexer = Token::lexer("1 + 2 * 3");
-    let res = Parser::parse(&mut lexer);
+    let mut parser = Parser {};
+    let res = parser.parse(&mut lexer);
     // two ways to parse
     assert_eq!(res, [7, 9]);
 }

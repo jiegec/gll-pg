@@ -39,6 +39,8 @@ pub enum S {
     Eps,
 }
 
+struct Parser {}
+
 #[gll(S, PaperToken)]
 impl Parser {
     #[rule(S -> A S Td)]
@@ -74,7 +76,8 @@ impl Parser {
 #[test]
 fn gll() {
     let mut lexer = PaperToken::lexer("aabd");
-    let res = Parser::parse(&mut lexer);
+    let mut parser = Parser {};
+    let res = parser.parse(&mut lexer);
     // two ways to parse
     assert_eq!(
         res,

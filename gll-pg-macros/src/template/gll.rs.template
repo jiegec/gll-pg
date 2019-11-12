@@ -41,13 +41,11 @@ mod gll_generated {
     }
 }
 
-pub struct {parser_type} { }
-
 impl {parser_type} {
 {parsers}
 
     #[allow(unreachable_code)]
-    pub fn parse(lexer: &mut logos::Lexer<{token}, {source}>) -> Vec<{res_type}> {
+    pub fn parse(&mut self, lexer: &mut logos::Lexer<{token}, {source}>) -> Vec<{res_type}> {
         use gll_pg_core::*;
         use gll_generated::{Label, Symbol};
         use logos::Source;
@@ -103,7 +101,7 @@ impl {parser_type} {
                                 false
                             }
                         }) {
-                            return Self::parse{start_symbol}(&input, &state, index);
+                            return self.parse{start_symbol}(&input, &state, index);
                         } else {
                             return vec![];
                         }

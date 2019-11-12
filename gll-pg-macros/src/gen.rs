@@ -528,7 +528,7 @@ fn gen_template(
     // parseS
     for nt in &non_terminals {
         let ty = &rules.iter().find(|rule| rule.name == *nt).unwrap().ty;
-        write!(&mut parsers, "{}fn parse{}(input: &Vec<LogosToken<{}>>, state: &gll_pg_core::GSSState<gll_generated::Label>, node: gll_pg_core::SPPFNodeIndex) -> Vec<{}> {{\n", indent, nt, token, ty).unwrap();
+        write!(&mut parsers, "{}fn parse{}(&mut self, input: &Vec<LogosToken<{}>>, state: &gll_pg_core::GSSState<gll_generated::Label>, node: gll_pg_core::SPPFNodeIndex) -> Vec<{}> {{\n", indent, nt, token, ty).unwrap();
         write!(&mut parsers, "{}\tlet mut res = vec![];\n", indent).unwrap();
         write!(
             &mut parsers,
@@ -590,7 +590,7 @@ fn gen_template(
                     } else {
                         write!(
                             &mut parsers,
-                            "{}\t\t\t\t{}for arg{} in Self::parse{}(input, state, leaves[{}]) {{\n",
+                            "{}\t\t\t\t{}for arg{} in self.parse{}(input, state, leaves[{}]) {{\n",
                             indent, more_indent, i, rule.prod[i], i
                         )
                         .unwrap();
@@ -598,7 +598,7 @@ fn gen_template(
                 }
                 write!(
                     &mut parsers,
-                    "{}\t\t\t\t\t{}res.push(Self::parse{}_{}(",
+                    "{}\t\t\t\t\t{}res.push(self.parse{}_{}(",
                     indent, more_indent, rule.name, rule_index,
                 )
                 .unwrap();
@@ -629,7 +629,7 @@ fn gen_template(
     for (rule_index, rule) in rules.iter().enumerate() {
         write!(
             &mut parsers,
-            "{}fn parse{}_{}(",
+            "{}fn parse{}_{}(&mut self, ",
             indent, rule.name, rule_index
         )
         .unwrap();
