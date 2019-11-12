@@ -103,25 +103,6 @@ impl {parser_type} {
                                 false
                             }
                         }) {
-                            use std::fs::File;
-                            use std::io::Write;
-                            let mut file = File::create("sppf.dot").unwrap();
-                            write!(file, "digraph {{\n").unwrap();
-                            for (i, node) in state.sppf_nodes.iter().enumerate() {
-                                let label = match node {
-                                    SPPFNode::Symbol(s, _, _, _) => format!("{:?}", s),
-                                    SPPFNode::Intermediate(_, _, _, _) => format!("I"),
-                                    SPPFNode::Packed(_, _, _) => format!("P"),
-                                    SPPFNode::Dummy => format!("D"),
-                                };
-                                write!(file, "{} [label={:?}]\n", i, label).unwrap();
-                                if let Some(children) = node.children() {
-                                    for child in children {
-                                        write!(file, "{} -> {}\n", i, child).unwrap();
-                                    }
-                                }
-                            }
-                            write!(file, "}}").unwrap();
                             return Self::parse{start_symbol}(&input, &state, index);
                         } else {
                             return vec![];

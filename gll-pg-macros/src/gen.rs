@@ -81,7 +81,12 @@ fn first_set_rhs(
     res
 }
 
-fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenConfig) -> String {
+fn gen_template(
+    start_symbol: String,
+    token: String,
+    parser_impl: &syn::ItemImpl,
+    config: &GenConfig,
+) -> String {
     let parser_type = parser_impl.self_ty.as_ref();
     let parser_def = parser_type.into_token_stream().to_string();
     let mut rules = vec![];
@@ -127,10 +132,6 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
                     ArgInfo::Arg { name, ty } => (name, ty),
                 })
                 .collect();
-            if config.verbose {
-                println!("lhs {:?} {:?}", lhs, lhs_ty);
-                println!("rhs {:?} {:?}", rhs, rhs_arg);
-            }
             if lhs == start_symbol {
                 start_type = lhs_ty.clone();
             }
@@ -373,7 +374,7 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
                     // no eps
                     write!(&mut states, "{}\tif [", indent).unwrap();
                     for t in first {
-                        write!(&mut states, "Token::{}, ", t.unwrap()).unwrap();
+                        write!(&mut states, "{}::{}, ", token, t.unwrap()).unwrap();
                     }
                     write!(
                         &mut states,
@@ -463,8 +464,8 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
                 if terminals.contains(prod) {
                     write!(
                         &mut states,
-                        "{}\tif input[state.current_position].kind == Token::{} {{\n",
-                        indent, prod
+                        "{}\tif input[state.current_position].kind == {}::{} {{\n",
+                        indent, token, prod
                     )
                     .unwrap();
                     write!(&mut states, "{}\t\tlet right = state.get_node_t(Symbol::T_{}, state.current_position);\n", indent, prod).unwrap();
@@ -487,7 +488,7 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
                     } else {
                         write!(&mut states, "{}\tif [", indent).unwrap();
                         for t in first {
-                            write!(&mut states, "Token::{}, ", t.unwrap()).unwrap();
+                            write!(&mut states, "{}::{}, ", token, t.unwrap()).unwrap();
                         }
                         write!(
                             &mut states,
@@ -527,7 +528,7 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
     // parseS
     for nt in &non_terminals {
         let ty = &rules.iter().find(|rule| rule.name == *nt).unwrap().ty;
-        write!(&mut parsers, "{}fn parse{}(input: &Vec<LogosToken<Token>>, state: &gll_pg_core::GSSState<gll_generated::Label>, node: gll_pg_core::SPPFNodeIndex) -> Vec<{}> {{\n", indent, nt, ty).unwrap();
+        write!(&mut parsers, "{}fn parse{}(input: &Vec<LogosToken<{}>>, state: &gll_pg_core::GSSState<gll_generated::Label>, node: gll_pg_core::SPPFNodeIndex) -> Vec<{}> {{\n", indent, nt, token, ty).unwrap();
         write!(&mut parsers, "{}\tlet mut res = vec![];\n", indent).unwrap();
         write!(
             &mut parsers,
@@ -661,7 +662,7 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
         // "{labels}"
         &labels,
         // "{token}"
-        "Token",
+        &token,
         // "{source}"
         "&str",
         // "{res_type}"
@@ -691,13 +692,22 @@ fn gen_string(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         Ok(parser_impl) => parser_impl,
         Err(_) => panic!("Attribute `gll` can only be applied to an impl block."),
     };
-    let start = match attr.clone().into_iter().next() {
+    let mut iter = attr.clone().into_iter();
+    let start_symbol = match iter.next() {
         Some(proc_macro::TokenTree::Ident(ident)) => ident.to_string(),
-        _ => panic!("Fail to parse start non-term, expect `#[lalr1(StartName)]."),
+        _ => panic!("Fail to parse start non-term, expect `#[lalr1(StartName, TokenClass)]."),
+    };
+    match iter.next() {
+        Some(proc_macro::TokenTree::Punct(punct)) if punct.as_char() == ',' => {}
+        _ => panic!("Fail to parse start non-term, expect `#[lalr1(StartName, TokenClass)]."),
+    };
+    let token = match iter.next() {
+        Some(proc_macro::TokenTree::Ident(ident)) => ident.to_string(),
+        _ => panic!("Fail to parse start non-term, expect `#[lalr1(StartName, TokenClass)]."),
     };
     let config = gen_config(&parser_impl);
 
-    let res = gen_template(start, &parser_impl, &config);
+    let res = gen_template(start_symbol, token, &parser_impl, &config);
     // replace
     if config.verbose {
         let mut file = File::create("gll-gen.rs").unwrap();

@@ -30,7 +30,7 @@ pub enum Token {
     IntLit,
 }
 
-#[gll(Expr)]
+#[gll(Expr, Token)]
 impl Parser {
     #[rule(Expr -> Expr Add Expr)]
     fn expr_add(l: i32, _op: LogosToken<Token>, r: i32) -> i32 {

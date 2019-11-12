@@ -5,7 +5,7 @@ use gll_pg_macros::gll;
 use logos::Logos;
 
 #[derive(Logos, Debug, Eq, PartialEq, Clone)]
-pub enum Token {
+pub enum PaperToken {
     #[end]
     End,
     #[error]
@@ -39,10 +39,10 @@ pub enum S {
     Eps,
 }
 
-#[gll(S)]
+#[gll(S, PaperToken)]
 impl Parser {
     #[rule(S -> A S Td)]
-    fn s1(a: A, s: S, d: LogosToken<Token>) -> S {
+    fn s1(a: A, s: S, d: LogosToken<PaperToken>) -> S {
         S::ASd(a, Box::new(s))
     }
     #[rule(S -> B S)]
@@ -54,26 +54,26 @@ impl Parser {
         S::Eps
     }
     #[rule(A -> Ta)]
-    fn a1(a: LogosToken<Token>) -> A {
+    fn a1(a: LogosToken<PaperToken>) -> A {
         A::A
     }
     #[rule(A -> Tc)]
-    fn a2(c: LogosToken<Token>) -> A {
+    fn a2(c: LogosToken<PaperToken>) -> A {
         A::C
     }
     #[rule(B -> Ta)]
-    fn b1(a: LogosToken<Token>) -> B {
+    fn b1(a: LogosToken<PaperToken>) -> B {
         B::A
     }
     #[rule(B -> Tb)]
-    fn b2(b: LogosToken<Token>) -> B {
+    fn b2(b: LogosToken<PaperToken>) -> B {
         B::B
     }
 }
 
 #[test]
 fn gll() {
-    let mut lexer = Token::lexer("aabd");
+    let mut lexer = PaperToken::lexer("aabd");
     let res = Parser::parse(&mut lexer);
     // two ways to parse
     assert_eq!(
