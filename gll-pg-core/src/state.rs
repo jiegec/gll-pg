@@ -19,7 +19,6 @@ pub trait GrammarLabel {
     fn end(&self) -> Option<Self::Symbol>;
 }
 
-
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum SPPFNode<L, S> {
     Dummy,
@@ -244,4 +243,3 @@ impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
         self.sppf_nodes.len() - 1
     }
 }
-

@@ -4,7 +4,7 @@ mod gll_generated {
     pub enum Label {
         Ret,
         L0,
-        {labels}
+{labels}
     }
 
     #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]

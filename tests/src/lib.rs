@@ -1,7 +1,7 @@
 #![feature(proc_macro_hygiene)]
 
-use logos::Logos;
 use gll_pg_macros::gll;
+use logos::Logos;
 
 #[derive(Logos, Debug, Eq, PartialEq, Clone)]
 pub enum Token {
@@ -33,19 +33,33 @@ pub enum Token {
 #[verbose]
 impl Parser {
     #[rule(S -> A S d)]
-    fn s1(l: i32, _op: Token, r: i32) -> i32 { l + r }
+    fn s1(l: i32, _op: Token, r: i32) -> i32 {
+        l + r
+    }
     #[rule(S -> B S)]
-    fn s2(l: i32, _op: Token, r: i32) -> i32 { l - r }
+    fn s2(l: i32, _op: Token, r: i32) -> i32 {
+        l - r
+    }
     #[rule(S -> )]
-    fn s3(l: i32, _op: Token, r: i32) -> i32 { l * r }
+    fn s3(l: i32, _op: Token, r: i32) -> i32 {
+        l * r
+    }
     #[rule(A -> a)]
-    fn a1(l: i32, _op: Token, r: i32) -> i32 { l / r }
+    fn a1(l: i32, _op: Token, r: i32) -> i32 {
+        l / r
+    }
     #[rule(A -> c)]
-    fn a2(l: i32, _op: Token, r: i32) -> i32 { l / r }
+    fn a2(l: i32, _op: Token, r: i32) -> i32 {
+        l / r
+    }
     #[rule(B -> a)]
-    fn b1(l: i32, _op: Token, r: i32) -> i32 { l % r }
+    fn b1(l: i32, _op: Token, r: i32) -> i32 {
+        l % r
+    }
     #[rule(B -> b)]
-    fn b2(_op: Token, r: i32) -> i32 { -r }
+    fn b2(_op: Token, r: i32) -> i32 {
+        -r
+    }
 }
 
 #[test]
