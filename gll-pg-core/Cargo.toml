@@ -5,7 +5,8 @@ authors = ["Jiajie Chen <noc@jiegec.ac.cn>"]
 edition = "2018"
 description = "A parser generator for GLL grammar, core library"
 repository = "https://github.com/jiegec/gll-pg"
-readme = "README.md"
+categories = ["parsing"]
+readme = "../README.md"
 keywords = ["gll", "parser", "parsing"]
 license = "MIT"
 
