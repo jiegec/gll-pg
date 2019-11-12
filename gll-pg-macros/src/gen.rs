@@ -56,6 +56,36 @@ struct ProdRule {
     arg: Vec<(Option<String>, String)>,
 }
 
+fn first_set_rhs(
+    rule: &ProdRule,
+    start: usize,
+    terminals: &HashSet<String>,
+    first_set: &HashMap<String, HashSet<Option<String>>>,
+) -> HashSet<Option<String>> {
+    let mut res = HashSet::new();
+    if rule.prod.len() == 0 {
+        res.insert(None);
+    } else {
+        for prod in &rule.prod[start..] {
+            if terminals.contains(prod) {
+                // terminal
+                res.insert(Some(prod.clone()));
+                break;
+            } else {
+                // non-terminal
+                let first = first_set[prod].clone();
+                res = res.union(&first).cloned().collect();
+                if !first.contains(&None) {
+                    break;
+                }
+                // this should appear after if statement
+                res.remove(&None);
+            }
+        }
+    }
+    res
+}
+
 fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenConfig) -> String {
     let parser_type = parser_impl.self_ty.as_ref();
     let parser_def = parser_type.into_token_stream().to_string();
@@ -332,6 +362,53 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
         write!(&mut symbol_non_terminals, "\t\tNT_{},\n", non_terminal).unwrap();
     }
 
+    // states
+    let mut states = String::new();
+    let indent = "\t\t\t\t";
+    for nt in &non_terminals {
+        let mut current_label = format!("L{}", nt);
+        write!(&mut states, "{}Label::{} => {{\n", indent, current_label).unwrap();
+        for (rule_index, rule) in rules.iter().enumerate() {
+            if rule.name == *nt {
+                let first = first_set_rhs(rule, 0, &terminals, &first_set);
+                if first.contains(&None) {
+                    // eps
+                    write!(&mut states, "{}\tif true {{\n", indent).unwrap();
+                } else {
+                    // no eps
+                    write!(&mut states, "{}\tif [", indent).unwrap();
+                    for t in first {
+                        write!(&mut states, "Token::{}, ", t.unwrap()).unwrap();
+                    }
+                    write!(
+                        &mut states,
+                        "].contains(&input[state.current_position]) {{\n"
+                    )
+                    .unwrap();
+                }
+                write!(&mut states, "{}\t\tstate.add(\n", indent).unwrap();
+                write!(
+                    &mut states,
+                    "{}\t\t\tLabel::L{}_{},\n",
+                    indent, nt, rule_index
+                )
+                .unwrap();
+                write!(&mut states, "{}\t\t\tstate.current_node_index,\n", indent).unwrap();
+                write!(&mut states, "{}\t\t\tstate.current_position,\n", indent).unwrap();
+                write!(&mut states, "{}\t\t\t0, // dummy\n", indent).unwrap();
+                write!(&mut states, "{}\t\t);\n", indent).unwrap();
+                write!(&mut states, "{}\t}}\n", indent).unwrap();
+            }
+        }
+        write!(&mut states, "{}}}\n", indent).unwrap();
+    }
+    for (rule_index, rule) in rules.iter().enumerate() {
+        let mut current_label = format!("L{}_{}", rule.name, rule_index);
+        write!(&mut states, "{}Label::{} => {{\n", indent, current_label).unwrap();
+        write!(&mut states, "{}}}\n", indent).unwrap();
+        for prod in &rule.prod {}
+    }
+
     let template = include_str!("template/gll.rs.template");
     let pattern = [
         "{parser_type}",
@@ -368,7 +445,7 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
         // "{start_symbol}"
         &start_symbol,
         // "{states}"
-        "",
+        &states,
     ];
 
     AhoCorasick::new(&pattern).replace_all(template, &replace)

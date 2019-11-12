@@ -83,14 +83,14 @@ impl<L, S> SPPFNode<L, S> {
 }
 
 impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
-    fn add(&mut self, l: L, u: NodeIndex, i: usize, w: SPPFNodeIndex) {
+    pub fn add(&mut self, l: L, u: NodeIndex, i: usize, w: SPPFNodeIndex) {
         if !self.visited[i].contains(&(l.clone(), u, w)) {
             self.visited[i].insert((l.clone(), u, w));
             self.todo.push((l, u, i, w));
         }
     }
 
-    fn pop(&mut self, u: NodeIndex, i: usize, z: SPPFNodeIndex) {
+    pub fn pop(&mut self, u: NodeIndex, i: usize, z: SPPFNodeIndex) {
         if u != self.initial_node_index {
             let (l, _k) = self.graph[u].clone();
             self.pop.insert((u, z));
@@ -106,7 +106,7 @@ impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
         }
     }
 
-    fn create(&mut self, l: L, u: NodeIndex, j: usize, w: SPPFNodeIndex) -> NodeIndex {
+    pub fn create(&mut self, l: L, u: NodeIndex, j: usize, w: SPPFNodeIndex) -> NodeIndex {
         let node = (l.clone(), j);
         let v = if let Some(index) = self.nodes.get(&node) {
             *index
@@ -129,12 +129,12 @@ impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
         v
     }
 
-    fn get_node_t(&mut self, x: L::Symbol, i: usize) -> SPPFNodeIndex {
+    pub fn get_node_t(&mut self, x: L::Symbol, i: usize) -> SPPFNodeIndex {
         let h = if x.is_eps() { i } else { i + 1 };
         self.find_or_create_sppf_symbol(x, i, h)
     }
 
-    fn get_node_p(&mut self, l: L, w: SPPFNodeIndex, z: SPPFNodeIndex) -> SPPFNodeIndex {
+    pub fn get_node_p(&mut self, l: L, w: SPPFNodeIndex, z: SPPFNodeIndex) -> SPPFNodeIndex {
         if l.first() {
             return z;
         } else {
