@@ -44,8 +44,10 @@ mod gll_generated {
 pub struct {parser_type} { }
 
 impl {parser_type} {
+{parsers}
+
     #[allow(unreachable_code)]
-    pub fn parse(lexer: &mut logos::Lexer<{token}, {source}>) -> Option<{res_type}> {
+    pub fn parse(lexer: &mut logos::Lexer<{token}, {source}>) -> Vec<{res_type}> {
         use gll_pg_core::*;
         use gll_generated::{Label, Symbol};
         let mut input = vec![];
@@ -60,7 +62,6 @@ impl {parser_type} {
             }
             lexer.advance();
         }
-        println!("{:?}", input);
         let m = input.len() - 1;
         let mut graph: Graph<GSSNode<gll_generated::Label>, SPPFNodeIndex, Directed> = Graph::new();
         let mut nodes = BTreeMap::new();
@@ -83,7 +84,6 @@ impl {parser_type} {
 
         let mut current_label = Label::L{start_symbol};
         loop {
-            eprintln!("{:?} {:?}", current_label, state.todo);
             match current_label {
                 Label::L0 => {
                     if let Some((l, u, i, w)) = state.todo.pop() {
@@ -92,14 +92,13 @@ impl {parser_type} {
                         state.current_position = i;
                         state.current_sppf_node = w;
                     } else {
-                        if state.sppf_nodes.iter().any(|node| {
+                        if let Some((index, _)) = state.sppf_nodes.iter().enumerate().find(|(_idx, node)| {
                             if let SPPFNode::Symbol(Symbol::NT_{start_symbol}, 0, node_m, _) = node {
                                 *node_m == m
                             } else {
                                 false
                             }
                         }) {
-                            println!("Succ");
                             use std::fs::File;
                             use std::io::Write;
                             let mut file = File::create("sppf.dot").unwrap();
@@ -119,10 +118,9 @@ impl {parser_type} {
                                 }
                             }
                             write!(file, "}}").unwrap();
-                            return Some(0);
+                            return Self::parse{start_symbol}(&state, index);
                         } else {
-                            println!("Fail");
-                            return None;
+                            return vec![];
                         }
                     }
                 }
@@ -138,7 +136,5 @@ impl {parser_type} {
                 _ => unimplemented!()
             }
         }
-
-        None
     }
 }

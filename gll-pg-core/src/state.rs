@@ -242,4 +242,23 @@ impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
             .push(SPPFNode::Intermediate(l, i, j, vec![]));
         self.sppf_nodes.len() - 1
     }
+
+    // collect all symbol leaves of a packed node
+    pub fn collect_symbols(&self, node: SPPFNodeIndex) -> Vec<SPPFNodeIndex> {
+        use SPPFNode::*;
+        match &self.sppf_nodes[node] {
+            Dummy => vec![],
+            Symbol(_, _, _, children) => vec![node],
+            Intermediate(_, _, _, children) => children
+                .iter()
+                .map(|node| self.collect_symbols(*node))
+                .flatten()
+                .collect(),
+            Packed(_, _, children) => children
+                .iter()
+                .map(|node| self.collect_symbols(*node))
+                .flatten()
+                .collect(),
+        }
+    }
 }

@@ -15,22 +15,15 @@ struct GenConfig {
 
 enum ArgInfo {
     Self_,
-    Arg { name: Option<String>, ty: String },
+    Arg { name: String, ty: String },
 }
 
 fn parse_arg(arg: &syn::FnArg) -> ArgInfo {
     match arg {
-        syn::FnArg::SelfRef(_) => ArgInfo::Self_,
-        syn::FnArg::SelfValue(_) => ArgInfo::Self_,
-        syn::FnArg::Captured(arg) => ArgInfo::Arg {
-            name: Some(arg.pat.clone().into_token_stream().to_string()),
+        syn::FnArg::Receiver(_) => ArgInfo::Self_,
+        syn::FnArg::Typed(arg) => ArgInfo::Arg {
+            name: arg.pat.clone().into_token_stream().to_string(),
             ty: arg.ty.clone().into_token_stream().to_string(),
-        },
-        // what is this?
-        syn::FnArg::Inferred(_) => unimplemented!("syn::FnArg::Inferred"),
-        syn::FnArg::Ignored(ty) => ArgInfo::Arg {
-            name: None,
-            ty: ty.into_token_stream().to_string(),
         },
     }
 }
@@ -53,7 +46,8 @@ struct ProdRule {
     ty: String,
     // name, var, type
     prod: Vec<String>,
-    arg: Vec<(Option<String>, String)>,
+    arg: Vec<(String, String)>,
+    body: String,
 }
 
 fn first_set_rhs(
@@ -94,7 +88,7 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
     for item in &parser_impl.items {
         if let syn::ImplItem::Method(method) = item {
             let attr = method.attrs.get(0).unwrap();
-            let rule = attr.tts.to_string();
+            let rule = attr.tokens.to_string();
             let rule = rule[1..rule.len() - 1].trim();
             let mut rule_split = rule.split_whitespace();
             let lhs = match rule_split.next() {
@@ -104,7 +98,7 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
                     rule, method.sig.ident
                 ),
             };
-            let lhs_ty = match &method.sig.decl.output {
+            let lhs_ty = match &method.sig.output {
                 syn::ReturnType::Type(_, ty) => ty.into_token_stream().to_string(),
                 syn::ReturnType::Default => String::from("()"),
             };
@@ -116,18 +110,12 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
                 ),
             };
             let rhs = rule_split.map(|s| s.to_owned()).collect::<Vec<String>>();
-            let rhs_arg = method
-                .sig
-                .decl
-                .inputs
-                .iter()
-                .map(parse_arg)
-                .collect::<Vec<_>>();
+            let rhs_arg = method.sig.inputs.iter().map(parse_arg).collect::<Vec<_>>();
             let skip_self = match rhs_arg.get(0) {
                 Some(ArgInfo::Self_) => 1,
                 _ => 0,
             };
-            let rhs_arg: Vec<(Option<String>, String)> = rhs_arg
+            let rhs_arg: Vec<(String, String)> = rhs_arg
                 .into_iter()
                 .skip(skip_self)
                 .map(|arg| match arg {
@@ -147,6 +135,7 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
                 ty: lhs_ty,
                 prod: rhs,
                 arg: rhs_arg,
+                body: method.block.to_token_stream().to_string(),
             });
         } else {
             panic!("Impl block of gll should only contain methods.");
@@ -528,6 +517,103 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
         }
     }
 
+    // parsers
+    let mut parsers = String::new();
+    let indent = "\t";
+    for nt in &non_terminals {
+        write!(&mut parsers, "{}fn parse{}(state: &gll_pg_core::GSSState<gll_generated::Label>, node: gll_pg_core::SPPFNodeIndex) -> Vec<i32> {{\n", indent, nt).unwrap();
+        write!(&mut parsers, "{}\tlet mut res = vec![];\n", indent).unwrap();
+        write!(
+            &mut parsers,
+            "{}\tfor child in state.sppf_nodes[node].children().unwrap() {{\n",
+            indent
+        )
+        .unwrap();
+        write!(
+            &mut parsers,
+            "{}\t\tlet node = &state.sppf_nodes[*child];\n",
+            indent
+        )
+        .unwrap();
+        write!(
+            &mut parsers,
+            "{}\t\tif let gll_pg_core::SPPFNode::Packed(l, k, c) = node {{\n",
+            indent
+        )
+        .unwrap();
+        write!(
+            &mut parsers,
+            "{}\t\t\tlet leaves = state.collect_symbols(*child);\n",
+            indent
+        )
+        .unwrap();
+        write!(&mut parsers, "{}\t\t\tmatch l {{\n", indent).unwrap();
+        for (rule_index, rule) in rules.iter().enumerate() {
+            if rule.name == *nt {
+                if rule.prod.len() > 0 {
+                    // not eps
+                    write!(
+                        &mut parsers,
+                        "{}\t\t\t\tgll_generated::Label::L{}_{}_{} => {{\n",
+                        indent,
+                        nt,
+                        rule_index,
+                        rule.prod.len()
+                    )
+                    .unwrap();
+                } else {
+                    // eps
+                    write!(
+                        &mut parsers,
+                        "{}\t\t\t\tgll_generated::Label::L{}_{} => {{\n",
+                        indent, nt, rule_index
+                    )
+                    .unwrap();
+                };
+                let mut more_indent = String::new();
+                for i in 0..rule.prod.len() {
+                    more_indent.push_str("\t");
+                    if terminals.contains(&rule.prod[i]) {
+                        write!(
+                            &mut parsers,
+                            "{}\t\t\t\t{}let {} = leaves[{}]; {{\n",
+                            indent, more_indent, rule.arg[i].0, i
+                        )
+                        .unwrap();
+                    } else {
+                        write!(
+                            &mut parsers,
+                            "{}\t\t\t\t{}for {} in Self::parse{}(state, leaves[{}]) {{\n",
+                            indent, more_indent, rule.arg[i].0, rule.prod[i], i
+                        )
+                        .unwrap();
+                    }
+                }
+                write!(
+                    &mut parsers,
+                    "{}\t\t\t\t\t{}res.push({{ {} }});\n",
+                    indent, more_indent, rule.body
+                );
+                for _ in 0..rule.prod.len() {
+                    write!(&mut parsers, "{}\t\t\t\t{}}}\n", indent, more_indent).unwrap();
+                    more_indent.split_off(more_indent.len() - "\t".len());
+                }
+                write!(&mut parsers, "{}\t\t\t\t}}\n", indent).unwrap();
+            }
+        }
+        write!(
+            &mut parsers,
+            "{}\t\t\t\t_ => panic!(\"Impossible packed node for {}: {{:?}}\", l)\n",
+            indent, nt
+        )
+        .unwrap();
+        write!(&mut parsers, "{}\t\t\t}}\n", indent).unwrap();
+        write!(&mut parsers, "{}\t\t}}\n", indent).unwrap();
+        write!(&mut parsers, "{}\t}}\n", indent).unwrap();
+        write!(&mut parsers, "{}\tres\n", indent).unwrap();
+        write!(&mut parsers, "{}}}\n", indent).unwrap();
+    }
+
     let template = include_str!("template/gll.rs.template");
     let pattern = [
         "{parser_type}",
@@ -541,6 +627,7 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
         "{label_end}",
         "{start_symbol}",
         "{states}",
+        "{parsers}",
     ];
     let replace = [
         // "{parser_type}"
@@ -552,7 +639,7 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
         // "{source}"
         "&str",
         // "{res_type}"
-        "isize",
+        "i32",
         // "{symbol_terminals}"
         &symbol_terminals,
         // "{symbol_non_terminals}"
@@ -565,6 +652,8 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
         &start_symbol,
         // "{states}"
         &states,
+        // "{parsers}"
+        &parsers,
     ];
 
     AhoCorasick::new(&pattern).replace_all(template, &replace)
