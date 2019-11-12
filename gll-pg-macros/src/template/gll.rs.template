@@ -44,6 +44,7 @@ mod gll_generated {
 pub struct {parser_type} { }
 
 impl {parser_type} {
+    #[allow(unreachable_code)]
     pub fn parse(lexer: &mut logos::Lexer<{token}, {source}>) -> Option<{res_type}> {
         use gll_pg_core::*;
         use gll_generated::{Label, Symbol};
@@ -82,6 +83,7 @@ impl {parser_type} {
 
         let mut current_label = Label::L{start_symbol};
         loop {
+            eprintln!("{:?} {:?}", current_label, state.todo);
             match current_label {
                 Label::L0 => {
                     if let Some((l, u, i, w)) = state.todo.pop() {
@@ -97,12 +99,40 @@ impl {parser_type} {
                                 false
                             }
                         }) {
-                            break;
+                            println!("Succ");
+                            use std::fs::File;
+                            use std::io::Write;
+                            let mut file = File::create("sppf.dot").unwrap();
+                            write!(file, "digraph {{\n").unwrap();
+                            for (i, node) in state.sppf_nodes.iter().enumerate() {
+                                let label = match node {
+                                    SPPFNode::Symbol(s, _, _, _) => format!("{:?}", s),
+                                    SPPFNode::Intermediate(_, _, _, _) => format!("I"),
+                                    SPPFNode::Packed(_, _, _) => format!("P"),
+                                    SPPFNode::Dummy => format!("D"),
+                                };
+                                write!(file, "{} [label={:?}]\n", i, label).unwrap();
+                                if let Some(children) = node.children() {
+                                    for child in children {
+                                        write!(file, "{} -> {}\n", i, child).unwrap();
+                                    }
+                                }
+                            }
+                            write!(file, "}}").unwrap();
+                            return Some(0);
                         } else {
                             println!("Fail");
                             return None;
                         }
                     }
+                }
+                Label::Ret => {
+                    state.pop(
+                        state.current_node_index,
+                        state.current_position,
+                        state.current_sppf_node,
+                    );
+                    current_label = Label::L0;
                 }
 {states}
                 _ => unimplemented!()

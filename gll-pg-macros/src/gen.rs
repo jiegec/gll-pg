@@ -61,6 +61,7 @@ fn first_set_rhs(
     start: usize,
     terminals: &HashSet<String>,
     first_set: &HashMap<String, HashSet<Option<String>>>,
+    follow_set: &HashMap<String, HashSet<Option<String>>>,
 ) -> HashSet<Option<String>> {
     let mut res = HashSet::new();
     if rule.prod.len() == 0 {
@@ -70,18 +71,18 @@ fn first_set_rhs(
             if terminals.contains(prod) {
                 // terminal
                 res.insert(Some(prod.clone()));
-                break;
+                return res;
             } else {
                 // non-terminal
-                let first = first_set[prod].clone();
-                res = res.union(&first).cloned().collect();
-                if !first.contains(&None) {
-                    break;
-                }
-                // this should appear after if statement
+                let first = &first_set[prod];
+                res = res.union(first).cloned().collect();
                 res.remove(&None);
+                if !first.contains(&None) {
+                    return res;
+                }
             }
         }
+        res = res.union(&follow_set[&rule.name]).cloned().collect();
     }
     res
 }
@@ -365,12 +366,13 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
     // states
     let mut states = String::new();
     let indent = "\t\t\t\t";
+    // LS
     for nt in &non_terminals {
-        let mut current_label = format!("L{}", nt);
+        let current_label = format!("L{}", nt);
         write!(&mut states, "{}Label::{} => {{\n", indent, current_label).unwrap();
         for (rule_index, rule) in rules.iter().enumerate() {
             if rule.name == *nt {
-                let first = first_set_rhs(rule, 0, &terminals, &first_set);
+                let first = first_set_rhs(rule, 0, &terminals, &first_set, &follow_set);
                 if first.contains(&None) {
                     // eps
                     write!(&mut states, "{}\tif true {{\n", indent).unwrap();
@@ -400,13 +402,130 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
                 write!(&mut states, "{}\t}}\n", indent).unwrap();
             }
         }
+        write!(&mut states, "{}\tcurrent_label = Label::L0;\n", indent).unwrap();
         write!(&mut states, "{}}}\n", indent).unwrap();
     }
+    // LS_0
     for (rule_index, rule) in rules.iter().enumerate() {
-        let mut current_label = format!("L{}_{}", rule.name, rule_index);
+        let current_label = format!("L{}_{}", rule.name, rule_index);
         write!(&mut states, "{}Label::{} => {{\n", indent, current_label).unwrap();
+        if rule.prod.len() == 0 {
+            // eps
+            write!(
+                &mut states,
+                "{}\tlet right = state.get_node_t(Symbol::Eps, state.current_position);\n",
+                indent
+            )
+            .unwrap();
+            write!(&mut states, "{}\tstate.current_sppf_node = state.get_node_p(Label::{}, state.current_sppf_node, right);\n", indent, current_label).unwrap();
+            write!(&mut states, "{}\tcurrent_label = Label::Ret;\n", indent).unwrap();
+        } else {
+            if terminals.contains(&rule.prod[0]) {
+                write!(
+                    &mut states,
+                    "{}\tlet right = state.get_node_t(Symbol::T_{}, state.current_position);\n",
+                    indent, rule.prod[0]
+                )
+                .unwrap();
+                write!(&mut states, "{}\tstate.current_position += 1;\n", indent).unwrap();
+                write!(&mut states, "{}\tstate.current_sppf_node = state.get_node_p(Label::{}_1, state.current_sppf_node, right);\n", indent, current_label).unwrap();
+                write!(
+                    &mut states,
+                    "{}\tcurrent_label = Label::{}_1;\n",
+                    indent, current_label
+                )
+                .unwrap();
+            } else {
+                write!(
+                    &mut states,
+                    "{}\tstate.current_node_index = state.create(\n",
+                    indent
+                )
+                .unwrap();
+                write!(&mut states, "{}\t\tLabel::{}_1,\n", indent, current_label).unwrap();
+                write!(&mut states, "{}\t\tstate.current_node_index,\n", indent).unwrap();
+                write!(&mut states, "{}\t\tstate.current_position,\n", indent).unwrap();
+                write!(&mut states, "{}\t\tstate.current_sppf_node,\n", indent).unwrap();
+                write!(&mut states, "{}\t);\n", indent).unwrap();
+                write!(
+                    &mut states,
+                    "{}\tcurrent_label = Label::L{};\n",
+                    indent, rule.prod[0]
+                )
+                .unwrap();
+            }
+        }
         write!(&mut states, "{}}}\n", indent).unwrap();
-        for prod in &rule.prod {}
+    }
+    // LS_0_0
+    for (rule_index, rule) in rules.iter().enumerate() {
+        for prod_index in 0..rule.prod.len() {
+            let current_label = format!("L{}_{}_{}", rule.name, rule_index, prod_index + 1);
+            let next_label = format!("L{}_{}_{}", rule.name, rule_index, prod_index + 2);
+            write!(&mut states, "{}Label::{} => {{\n", indent, current_label).unwrap();
+            if prod_index == rule.prod.len() - 1 {
+                write!(&mut states, "{}\tcurrent_label = Label::Ret;\n", indent).unwrap();
+            } else {
+                let prod = &rule.prod[prod_index + 1];
+                if terminals.contains(prod) {
+                    write!(
+                        &mut states,
+                        "{}\tif input[state.current_position] == Token::{} {{\n",
+                        indent, prod
+                    )
+                    .unwrap();
+                    write!(&mut states, "{}\t\tlet right = state.get_node_t(Symbol::T_{}, state.current_position);\n", indent, prod).unwrap();
+                    write!(&mut states, "{}\t\tstate.current_position += 1;\n", indent).unwrap();
+                    write!(&mut states, "{}\t\tstate.current_sppf_node = state.get_node_p(Label::{}, state.current_sppf_node, right);\n", indent, next_label).unwrap();
+                    write!(
+                        &mut states,
+                        "{}\t\tcurrent_label = Label::{};\n",
+                        indent, next_label
+                    )
+                    .unwrap();
+                    write!(&mut states, "{}\t}} else {{\n", indent).unwrap();
+                    write!(&mut states, "{}\t\tcurrent_label = Label::L0;\n", indent).unwrap();
+                    write!(&mut states, "{}\t}}\n", indent).unwrap();
+                } else {
+                    let first =
+                        first_set_rhs(rule, prod_index + 1, &terminals, &first_set, &follow_set);
+                    if first.contains(&None) {
+                        write!(&mut states, "{}\tif true {{\n", indent).unwrap();
+                    } else {
+                        write!(&mut states, "{}\tif [", indent).unwrap();
+                        for t in first {
+                            write!(&mut states, "Token::{}, ", t.unwrap()).unwrap();
+                        }
+                        write!(
+                            &mut states,
+                            "].contains(&input[state.current_position]) {{\n"
+                        )
+                        .unwrap();
+                    }
+                    write!(
+                        &mut states,
+                        "{}\t\tstate.current_node_index = state.create(\n",
+                        indent
+                    )
+                    .unwrap();
+                    write!(&mut states, "{}\t\t\tLabel::{},\n", indent, next_label).unwrap();
+                    write!(&mut states, "{}\t\t\tstate.current_node_index,\n", indent).unwrap();
+                    write!(&mut states, "{}\t\t\tstate.current_position,\n", indent).unwrap();
+                    write!(&mut states, "{}\t\t\tstate.current_sppf_node,\n", indent).unwrap();
+                    write!(&mut states, "{}\t\t);\n", indent).unwrap();
+                    write!(
+                        &mut states,
+                        "{}\t\tcurrent_label = Label::L{};\n",
+                        indent, prod
+                    )
+                    .unwrap();
+                    write!(&mut states, "{}\t}} else {{\n", indent).unwrap();
+                    write!(&mut states, "{}\t\tcurrent_label = Label::L0;\n", indent).unwrap();
+                    write!(&mut states, "{}\t}}\n", indent).unwrap();
+                }
+            }
+            write!(&mut states, "{}}}\n", indent).unwrap();
+        }
     }
 
     let template = include_str!("template/gll.rs.template");

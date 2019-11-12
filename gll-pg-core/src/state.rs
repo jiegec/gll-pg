@@ -49,7 +49,7 @@ impl<L, S> SPPFNode<L, S> {
         match self {
             Symbol(_, _, r, _) => *r,
             Intermediate(_, _, r, _) => *r,
-            _ => unimplemented!(),
+            _ => panic!("no right extent for packed and dummy"),
         }
     }
 
@@ -58,11 +58,11 @@ impl<L, S> SPPFNode<L, S> {
         match self {
             Symbol(_, l, _, _) => *l,
             Intermediate(_, l, _, _) => *l,
-            _ => unimplemented!(),
+            _ => panic!("no left extent for packed and dummy"),
         }
     }
 
-    fn children(&self) -> Option<&Vec<SPPFNodeIndex>> {
+    pub fn children(&self) -> Option<&Vec<SPPFNodeIndex>> {
         use SPPFNode::*;
         match self {
             Dummy => None,
@@ -77,7 +77,7 @@ impl<L, S> SPPFNode<L, S> {
         match self {
             Symbol(_, _, _, children) => Some(children),
             Intermediate(_, _, _, children) => Some(children),
-            _ => unimplemented!(),
+            _ => panic!("no children for packed and dummy"),
         }
     }
 }
@@ -159,7 +159,7 @@ impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
                             self.sppf_nodes.push(SPPFNode::Packed(l, k, vec![w, z]));
                         }
                     } else {
-                        unimplemented!()
+                        unreachable!()
                     }
                     y
                 } else {
@@ -175,7 +175,7 @@ impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
                             self.sppf_nodes.push(SPPFNode::Packed(l, k, vec![w, z]));
                         }
                     } else {
-                        unimplemented!()
+                        unreachable!()
                     }
                     y
                 }
@@ -194,7 +194,7 @@ impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
                             self.sppf_nodes.push(SPPFNode::Packed(l, k, vec![z]));
                         }
                     } else {
-                        unimplemented!()
+                        unreachable!()
                     }
                     y
                 } else {
@@ -210,7 +210,7 @@ impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
                             self.sppf_nodes.push(SPPFNode::Packed(l, k, vec![z]));
                         }
                     } else {
-                        unimplemented!()
+                        unreachable!()
                     }
                     y
                 }

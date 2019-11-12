@@ -57,5 +57,5 @@ impl Parser {
 #[test]
 fn gll() {
     let mut lexer = Token::lexer("aabd");
-    Parser::parse(&mut lexer);
+    assert!(Parser::parse(&mut lexer).is_some());
 }
