@@ -2,7 +2,7 @@
 
 use aho_corasick::AhoCorasick;
 use quote::ToTokens;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Write as FmtWrite;
 use std::fs::File;
 use std::io::Write;
@@ -56,7 +56,7 @@ struct ProdRule {
     arg: Vec<(Option<String>, String)>,
 }
 
-fn gen_template(start: String, parser_impl: &syn::ItemImpl, config: &GenConfig) -> String {
+fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenConfig) -> String {
     let parser_type = parser_impl.self_ty.as_ref();
     let parser_def = parser_type.into_token_stream().to_string();
     let mut rules = vec![];
@@ -140,12 +140,137 @@ fn gen_template(start: String, parser_impl: &syn::ItemImpl, config: &GenConfig) 
         println!("NT {:?}", non_terminals);
     }
 
+    // FIRST set, None means Eps
+    let mut first_set: HashMap<String, HashSet<Option<String>>> = HashMap::new();
+    loop {
+        let mut new = first_set.clone();
+        for rule in &rules {
+            if rule.prod.len() > 0 {
+                // no eps
+                for prod in &rule.prod {
+                    if terminals.contains(prod) {
+                        // terminal
+                        new.entry(rule.name.clone())
+                            .or_insert_with(|| HashSet::new())
+                            .insert(Some(prod.clone()));
+                        break;
+                    } else {
+                        // non-terminal
+                        let first = new
+                            .entry(prod.clone())
+                            .or_insert_with(|| HashSet::new())
+                            .clone();
+                        let my = new
+                            .entry(rule.name.clone())
+                            .or_insert_with(|| HashSet::new());
+                        *my = my.union(&first).cloned().collect();
+                        if !first.contains(&None) {
+                            // no eps
+                            break;
+                        }
+                    }
+                }
+            } else {
+                // eps
+                new.entry(rule.name.clone())
+                    .or_insert_with(|| HashSet::new())
+                    .insert(None);
+            }
+        }
+        if new == first_set {
+            break;
+        }
+        first_set = new;
+    }
+    if config.verbose {
+        println!("FIRST SET:");
+        for (nt, set) in &first_set {
+            print!("{}:", nt);
+            for s in set.iter() {
+                match s {
+                    Some(s) => print!(" {}", s),
+                    None => print!(" Eps"),
+                }
+            }
+            println!();
+        }
+    }
+
+    // FOLLOW set
+    let mut follow_set: HashMap<String, HashSet<Option<String>>> = HashMap::new();
+    follow_set
+        .entry(start_symbol.clone())
+        .or_insert(HashSet::new())
+        .insert(Some(String::from("End")));
+    loop {
+        let mut new = follow_set.clone();
+        for rule in &rules {
+            for i in 0..rule.prod.len() {
+                if non_terminals.contains(&rule.prod[i]) {
+                    let mut stop = false;
+                    for j in (i + 1)..rule.prod.len() {
+                        if non_terminals.contains(&rule.prod[j]) {
+                            // non-terminal
+                            let follow = first_set
+                                .entry(rule.prod[j].clone())
+                                .or_insert_with(|| HashSet::new())
+                                .clone();
+                            let my = new
+                                .entry(rule.prod[i].clone())
+                                .or_insert_with(|| HashSet::new());
+                            *my = my.union(&follow).cloned().collect();
+                            my.remove(&None);
+                            if !first_set[&rule.prod[j]].contains(&None) {
+                                stop = true;
+                                break;
+                            }
+                        } else {
+                            // terminal
+                            new.entry(rule.prod[i].clone())
+                                .or_insert_with(|| HashSet::new())
+                                .insert(Some(rule.prod[j].clone()));
+                            stop = true;
+                            break;
+                        }
+                    }
+                    if !stop {
+                        let follow = new
+                            .entry(rule.name.clone())
+                            .or_insert_with(|| HashSet::new())
+                            .clone();
+                        let my = new
+                            .entry(rule.prod[i].clone())
+                            .or_insert_with(|| HashSet::new());
+                        *my = my.union(&follow).cloned().collect();
+                    }
+                }
+            }
+        }
+        if new == follow_set {
+            break;
+        }
+        follow_set = new;
+    }
+    if config.verbose {
+        println!("FOLLOW SET:");
+        for (nt, set) in &follow_set {
+            print!("{}:", nt);
+            for s in set.iter() {
+                match s {
+                    Some(s) => print!(" {}", s),
+                    None => print!(" Eps"),
+                }
+            }
+            println!();
+        }
+    }
+
     // labels
     let mut labels = String::new();
     let mut label_first = String::new();
     let mut label_end = String::new();
-    for terminal in &terminals {
-        write!(&mut labels, "\t\tL{},\n", terminal).unwrap();
+    for non_terminal in &non_terminals {
+        write!(&mut labels, "\t\tL{},\n", non_terminal).unwrap();
     }
     for (rule_index, rule) in rules.iter().enumerate() {
         write!(
@@ -218,6 +343,8 @@ fn gen_template(start: String, parser_impl: &syn::ItemImpl, config: &GenConfig) 
         "{symbol_non_terminals}",
         "{label_first}",
         "{label_end}",
+        "{start_symbol}",
+        "{states}",
     ];
     let replace = [
         // "{parser_type}"
@@ -238,6 +365,10 @@ fn gen_template(start: String, parser_impl: &syn::ItemImpl, config: &GenConfig) 
         &label_first,
         // "{label_end}"
         &label_end,
+        // "{start_symbol}"
+        &start_symbol,
+        // "{states}"
+        "",
     ];
 
     AhoCorasick::new(&pattern).replace_all(template, &replace)

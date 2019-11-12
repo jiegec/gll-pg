@@ -46,24 +46,24 @@ pub struct {parser_type} { }
 impl {parser_type} {
     pub fn parse(lexer: &mut logos::Lexer<{token}, {source}>) -> Option<{res_type}> {
         use gll_pg_core::*;
-        use gll_generated::Label::*;
+        use gll_generated::{Label, Symbol};
         let mut input = vec![];
         loop {
-            if lexer.token == {token}::End {
-                break;
-            }
             if lexer.token == {token}::_Eps {
                 lexer.advance();
                 continue;
             }
             input.push(lexer.token.clone());
+            if lexer.token == {token}::End {
+                break;
+            }
             lexer.advance();
         }
         println!("{:?}", input);
         let m = input.len() - 1;
         let mut graph: Graph<GSSNode<gll_generated::Label>, SPPFNodeIndex, Directed> = Graph::new();
         let mut nodes = BTreeMap::new();
-        let initial_node = (L0, 0);
+        let initial_node = (Label::L0, 0);
         let initial_node_index = graph.add_node(initial_node);
         nodes.insert(initial_node, initial_node_index);
 
@@ -79,6 +79,36 @@ impl {parser_type} {
             current_sppf_node: 0,
             current_position: 0,
         };
+
+        let mut current_label = Label::L{start_symbol};
+        loop {
+            match current_label {
+                Label::L0 => {
+                    if let Some((l, u, i, w)) = state.todo.pop() {
+                        current_label = l;
+                        state.current_node_index = u;
+                        state.current_position = i;
+                        state.current_sppf_node = w;
+                    } else {
+                        if state.sppf_nodes.iter().any(|node| {
+                            if let SPPFNode::Symbol(Symbol::NT_{start_symbol}, 0, node_m, _) = node {
+                                *node_m == m
+                            } else {
+                                false
+                            }
+                        }) {
+                            break;
+                        } else {
+                            println!("Fail");
+                            return None;
+                        }
+                    }
+                }
+{states}
+                _ => unimplemented!()
+            }
+        }
+
         None
     }
 }

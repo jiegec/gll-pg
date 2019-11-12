@@ -56,6 +56,6 @@ impl Parser {
 
 #[test]
 fn gll() {
-    let mut lexer = Token::lexer("1 - 2 * (3 + 4 * 5 / 6) + -7 * -9 % 10");
-    assert_eq!(Parser::parse(&mut lexer), Some(-8));
+    let mut lexer = Token::lexer("aabd");
+    Parser::parse(&mut lexer);
 }
