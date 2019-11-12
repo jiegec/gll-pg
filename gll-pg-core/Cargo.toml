@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 petgraph = "0.4"
+logos = "0.9"

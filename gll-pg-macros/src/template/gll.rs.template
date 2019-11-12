@@ -50,13 +50,17 @@ impl {parser_type} {
     pub fn parse(lexer: &mut logos::Lexer<{token}, {source}>) -> Vec<{res_type}> {
         use gll_pg_core::*;
         use gll_generated::{Label, Symbol};
+        use logos::Source;
         let mut input = vec![];
         loop {
             if lexer.token == {token}::_Eps {
                 lexer.advance();
                 continue;
             }
-            input.push(lexer.token.clone());
+            input.push(LogosToken {
+                kind: lexer.token.clone(),
+                slice: lexer.slice(),
+            });
             if lexer.token == {token}::End {
                 break;
             }

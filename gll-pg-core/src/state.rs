@@ -248,7 +248,7 @@ impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
         use SPPFNode::*;
         match &self.sppf_nodes[node] {
             Dummy => vec![],
-            Symbol(_, _, _, children) => vec![node],
+            Symbol(_, _, _, _) => vec![node],
             Intermediate(_, _, _, children) => children
                 .iter()
                 .map(|node| self.collect_symbols(*node))

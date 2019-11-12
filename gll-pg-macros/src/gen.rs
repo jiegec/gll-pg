@@ -85,6 +85,7 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
     let parser_type = parser_impl.self_ty.as_ref();
     let parser_def = parser_type.into_token_stream().to_string();
     let mut rules = vec![];
+    let mut start_type = String::from("()");
     for item in &parser_impl.items {
         if let syn::ImplItem::Method(method) = item {
             let attr = method.attrs.get(0).unwrap();
@@ -129,6 +130,9 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
             if config.verbose {
                 println!("lhs {:?} {:?}", lhs, lhs_ty);
                 println!("rhs {:?} {:?}", rhs, rhs_arg);
+            }
+            if lhs == start_symbol {
+                start_type = lhs_ty.clone();
             }
             rules.push(ProdRule {
                 name: lhs,
@@ -373,7 +377,7 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
                     }
                     write!(
                         &mut states,
-                        "].contains(&input[state.current_position]) {{\n"
+                        "].contains(&input[state.current_position].kind) {{\n"
                     )
                     .unwrap();
                 }
@@ -459,7 +463,7 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
                 if terminals.contains(prod) {
                     write!(
                         &mut states,
-                        "{}\tif input[state.current_position] == Token::{} {{\n",
+                        "{}\tif input[state.current_position].kind == Token::{} {{\n",
                         indent, prod
                     )
                     .unwrap();
@@ -487,7 +491,7 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
                         }
                         write!(
                             &mut states,
-                            "].contains(&input[state.current_position]) {{\n"
+                            "].contains(&input[state.current_position].kind) {{\n"
                         )
                         .unwrap();
                     }
@@ -522,7 +526,8 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
     let indent = "\t";
     // parseS
     for nt in &non_terminals {
-        write!(&mut parsers, "{}fn parse{}(input: &Vec<Token>, state: &gll_pg_core::GSSState<gll_generated::Label>, node: gll_pg_core::SPPFNodeIndex) -> Vec<i32> {{\n", indent, nt).unwrap();
+        let ty = &rules.iter().find(|rule| rule.name == *nt).unwrap().ty;
+        write!(&mut parsers, "{}fn parse{}(input: &Vec<LogosToken<Token>>, state: &gll_pg_core::GSSState<gll_generated::Label>, node: gll_pg_core::SPPFNodeIndex) -> Vec<{}> {{\n", indent, nt, ty).unwrap();
         write!(&mut parsers, "{}\tlet mut res = vec![];\n", indent).unwrap();
         write!(
             &mut parsers,
@@ -597,7 +602,7 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
                 )
                 .unwrap();
                 for i in 0..rule.prod.len() {
-                    write!(&mut parsers, "arg{}, ", i).unwrap();
+                    write!(&mut parsers, "arg{}.clone(), ", i).unwrap();
                 }
                 write!(&mut parsers, "));\n",).unwrap();
                 for _ in 0..rule.prod.len() {
@@ -660,7 +665,7 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
         // "{source}"
         "&str",
         // "{res_type}"
-        "i32",
+        &start_type,
         // "{symbol_terminals}"
         &symbol_terminals,
         // "{symbol_non_terminals}"
