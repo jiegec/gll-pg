@@ -84,4 +84,5 @@ fn gll() {
     let res = parser.parse(&mut lexer);
     // two ways to parse
     assert_eq!(res, [7, 9]);
+    assert_eq!(parser.literals[..], [1, 2, 3, 1, 2, 3]);
 }
