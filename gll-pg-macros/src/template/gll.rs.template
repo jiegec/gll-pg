@@ -9,8 +9,10 @@ mod gll_generated {
 
     #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
     pub enum Symbol {
-        {terminals}
-        {non_terminals}
+        // terminals
+{symbol_terminals}
+        // non-terminals
+{symbol_non_terminals}
         Eps,
     }
 
@@ -32,7 +34,7 @@ mod gll_generated {
             use Label::*;
             use Symbol::*;
             match self {
-                {label_end}
+{label_end}
                 _ => None,
             }
         }

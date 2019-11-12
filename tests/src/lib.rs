@@ -11,28 +11,20 @@ pub enum Token {
     Error,
     #[token = " "]
     _Eps,
-    #[token = "+"]
-    Add,
-    #[token = "-"]
-    Sub,
-    #[token = "*"]
-    Mul,
-    #[token = "/"]
-    Div,
-    #[token = "%"]
-    Mod,
-    #[token = "("]
-    LPar,
-    #[token = ")"]
-    RPar,
-    #[regex = "[0-9]+"]
-    IntLit,
+    #[token = "a"]
+    Ta,
+    #[token = "b"]
+    Tb,
+    #[token = "c"]
+    Tc,
+    #[token = "d"]
+    Td,
 }
 
 #[gll(S)]
 #[verbose]
 impl Parser {
-    #[rule(S -> A S d)]
+    #[rule(S -> A S Td)]
     fn s1(l: i32, _op: Token, r: i32) -> i32 {
         l + r
     }
@@ -44,19 +36,19 @@ impl Parser {
     fn s3(l: i32, _op: Token, r: i32) -> i32 {
         l * r
     }
-    #[rule(A -> a)]
+    #[rule(A -> Ta)]
     fn a1(l: i32, _op: Token, r: i32) -> i32 {
         l / r
     }
-    #[rule(A -> c)]
+    #[rule(A -> Tc)]
     fn a2(l: i32, _op: Token, r: i32) -> i32 {
         l / r
     }
-    #[rule(B -> a)]
+    #[rule(B -> Ta)]
     fn b1(l: i32, _op: Token, r: i32) -> i32 {
         l % r
     }
-    #[rule(B -> b)]
+    #[rule(B -> Tb)]
     fn b2(_op: Token, r: i32) -> i32 {
         -r
     }

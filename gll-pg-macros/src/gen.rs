@@ -121,15 +121,17 @@ fn gen_template(start: String, parser_impl: &syn::ItemImpl, config: &GenConfig) 
             panic!("Impl block of gll should only contain methods.");
         }
     }
-    let mut terminals = HashSet::new();
-    for rule in &rules {
-        terminals.insert(rule.name.clone());
-    }
+
+    // terminals and non-terminals
     let mut non_terminals = HashSet::new();
     for rule in &rules {
+        non_terminals.insert(rule.name.clone());
+    }
+    let mut terminals = HashSet::new();
+    for rule in &rules {
         for prod in &rule.prod {
-            if !terminals.contains(prod) {
-                non_terminals.insert(prod.clone());
+            if !non_terminals.contains(prod) {
+                terminals.insert(prod.clone());
             }
         }
     }
@@ -137,7 +139,11 @@ fn gen_template(start: String, parser_impl: &syn::ItemImpl, config: &GenConfig) 
         println!("T {:?}", terminals);
         println!("NT {:?}", non_terminals);
     }
+
+    // labels
     let mut labels = String::new();
+    let mut label_first = String::new();
+    let mut label_end = String::new();
     for terminal in &terminals {
         write!(&mut labels, "\t\tL{},\n", terminal).unwrap();
     }
@@ -166,7 +172,39 @@ fn gen_template(start: String, parser_impl: &syn::ItemImpl, config: &GenConfig) 
                 )
                 .unwrap();
             }
+            write!(
+                &mut label_end,
+                "\t\t\t\tL{}_{}_{} => Some(NT_{}),\n",
+                rule.name,
+                rule_index,
+                rule.prod.len(),
+                rule.name,
+            )
+            .unwrap();
+        } else {
+            // eps
+            write!(
+                &mut label_end,
+                "\t\t\t\tL{}_{} => Some(NT_{}),\n",
+                rule.name, rule_index, rule.name,
+            )
+            .unwrap();
         }
+
+        if rule.prod.len() > 1 {
+            // TODO: check nullable
+            write!(&mut label_first, "L{}_{}_{},", rule.name, rule_index, 1,).unwrap();
+        }
+    }
+
+    // symbols
+    let mut symbol_terminals = String::new();
+    for terminal in &terminals {
+        write!(&mut symbol_terminals, "\t\tT_{},\n", terminal).unwrap();
+    }
+    let mut symbol_non_terminals = String::new();
+    for non_terminal in &non_terminals {
+        write!(&mut symbol_non_terminals, "\t\tNT_{},\n", non_terminal).unwrap();
     }
 
     let template = include_str!("template/gll.rs.template");
@@ -176,8 +214,8 @@ fn gen_template(start: String, parser_impl: &syn::ItemImpl, config: &GenConfig) 
         "{token}",
         "{source}",
         "{res_type}",
-        "{terminals}",
-        "{non_terminals}",
+        "{symbol_terminals}",
+        "{symbol_non_terminals}",
         "{label_first}",
         "{label_end}",
     ];
@@ -192,14 +230,14 @@ fn gen_template(start: String, parser_impl: &syn::ItemImpl, config: &GenConfig) 
         "&str",
         // "{res_type}"
         "isize",
-        // "{terminals}"
-        "",
-        // "{non_terminals}"
-        "",
+        // "{symbol_terminals}"
+        &symbol_terminals,
+        // "{symbol_non_terminals}"
+        &symbol_non_terminals,
         // "{label_first}"
-        "",
+        &label_first,
         // "{label_end}"
-        "",
+        &label_end,
     ];
 
     AhoCorasick::new(&pattern).replace_all(template, &replace)
