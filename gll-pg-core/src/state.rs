@@ -53,7 +53,7 @@ impl<L, S> SPPFNode<L, S> {
         }
     }
 
-    fn left_extent(&self) -> usize {
+    pub fn left_extent(&self) -> usize {
         use SPPFNode::*;
         match self {
             Symbol(_, l, _, _) => *l,

@@ -22,6 +22,7 @@ pub enum Token {
 }
 
 #[gll(S)]
+#[verbose]
 impl Parser {
     #[rule(S -> A S Td)]
     fn s1(a: i32, s: i32, d: Token) -> i32 {

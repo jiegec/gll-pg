@@ -520,8 +520,9 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
     // parsers
     let mut parsers = String::new();
     let indent = "\t";
+    // parseS
     for nt in &non_terminals {
-        write!(&mut parsers, "{}fn parse{}(state: &gll_pg_core::GSSState<gll_generated::Label>, node: gll_pg_core::SPPFNodeIndex) -> Vec<i32> {{\n", indent, nt).unwrap();
+        write!(&mut parsers, "{}fn parse{}(input: &Vec<Token>, state: &gll_pg_core::GSSState<gll_generated::Label>, node: gll_pg_core::SPPFNodeIndex) -> Vec<i32> {{\n", indent, nt).unwrap();
         write!(&mut parsers, "{}\tlet mut res = vec![];\n", indent).unwrap();
         write!(
             &mut parsers,
@@ -576,24 +577,29 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
                     if terminals.contains(&rule.prod[i]) {
                         write!(
                             &mut parsers,
-                            "{}\t\t\t\t{}let {} = leaves[{}]; {{\n",
-                            indent, more_indent, rule.arg[i].0, i
+                            "{}\t\t\t\t{}let arg{} = input[state.sppf_nodes[leaves[{}]].left_extent()].clone(); {{\n",
+                            indent, more_indent, i, i
                         )
                         .unwrap();
                     } else {
                         write!(
                             &mut parsers,
-                            "{}\t\t\t\t{}for {} in Self::parse{}(state, leaves[{}]) {{\n",
-                            indent, more_indent, rule.arg[i].0, rule.prod[i], i
+                            "{}\t\t\t\t{}for arg{} in Self::parse{}(input, state, leaves[{}]) {{\n",
+                            indent, more_indent, i, rule.prod[i], i
                         )
                         .unwrap();
                     }
                 }
                 write!(
                     &mut parsers,
-                    "{}\t\t\t\t\t{}res.push({{ {} }});\n",
-                    indent, more_indent, rule.body
-                );
+                    "{}\t\t\t\t\t{}res.push(Self::parse{}_{}(",
+                    indent, more_indent, rule.name, rule_index,
+                )
+                .unwrap();
+                for i in 0..rule.prod.len() {
+                    write!(&mut parsers, "arg{}, ", i).unwrap();
+                }
+                write!(&mut parsers, "));\n",).unwrap();
                 for _ in 0..rule.prod.len() {
                     write!(&mut parsers, "{}\t\t\t\t{}}}\n", indent, more_indent).unwrap();
                     more_indent.split_off(more_indent.len() - "\t".len());
@@ -611,6 +617,21 @@ fn gen_template(start_symbol: String, parser_impl: &syn::ItemImpl, config: &GenC
         write!(&mut parsers, "{}\t\t}}\n", indent).unwrap();
         write!(&mut parsers, "{}\t}}\n", indent).unwrap();
         write!(&mut parsers, "{}\tres\n", indent).unwrap();
+        write!(&mut parsers, "{}}}\n", indent).unwrap();
+    }
+    // parseS_0
+    for (rule_index, rule) in rules.iter().enumerate() {
+        write!(
+            &mut parsers,
+            "{}fn parse{}_{}(",
+            indent, rule.name, rule_index
+        )
+        .unwrap();
+        for arg in &rule.arg {
+            write!(&mut parsers, "{}: {},", arg.0, arg.1).unwrap();
+        }
+        write!(&mut parsers, ") -> {} {{\n", rule.ty).unwrap();
+        write!(&mut parsers, "{}{}\n", indent, rule.body).unwrap();
         write!(&mut parsers, "{}}}\n", indent).unwrap();
     }
 

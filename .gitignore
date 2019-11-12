@@ -3,3 +3,4 @@
 Cargo.lock
 .idea
 gll-gen.rs
+*.dot

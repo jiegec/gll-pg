@@ -118,7 +118,7 @@ impl {parser_type} {
                                 }
                             }
                             write!(file, "}}").unwrap();
-                            return Self::parse{start_symbol}(&state, index);
+                            return Self::parse{start_symbol}(&input, &state, index);
                         } else {
                             return vec![];
                         }
