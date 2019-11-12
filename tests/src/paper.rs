@@ -39,7 +39,9 @@ pub enum S {
     Eps,
 }
 
-struct Parser {}
+struct Parser {
+    history: Vec<A>,
+}
 
 #[gll(S, PaperToken)]
 impl Parser {
@@ -57,10 +59,12 @@ impl Parser {
     }
     #[rule(A -> Ta)]
     fn a1(a: LogosToken<PaperToken>) -> A {
+        self.history.push(A::A);
         A::A
     }
     #[rule(A -> Tc)]
     fn a2(c: LogosToken<PaperToken>) -> A {
+        self.history.push(A::C);
         A::C
     }
     #[rule(B -> Ta)]
@@ -76,7 +80,9 @@ impl Parser {
 #[test]
 fn gll() {
     let mut lexer = PaperToken::lexer("aabd");
-    let mut parser = Parser {};
+    let mut parser = Parser {
+        history: Vec::new(),
+    };
     let res = parser.parse(&mut lexer);
     // two ways to parse
     assert_eq!(
@@ -92,4 +98,5 @@ fn gll() {
             )
         ]
     );
+    assert_eq!(parser.history.len(), 2);
 }
