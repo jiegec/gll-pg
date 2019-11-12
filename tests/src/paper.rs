@@ -5,7 +5,7 @@ use gll_pg_macros::gll;
 use logos::Logos;
 
 #[derive(Logos, Debug, Eq, PartialEq, Clone)]
-pub enum PaperToken {
+pub enum Token {
     #[end]
     End,
     #[error]
@@ -39,14 +39,15 @@ pub enum S {
     Eps,
 }
 
+#[derive(Default)]
 struct Parser {
     history: Vec<A>,
 }
 
-#[gll(S, PaperToken)]
+#[gll(S, Token)]
 impl Parser {
     #[rule(S -> A S Td)]
-    fn s1(a: A, s: S, d: LogosToken<PaperToken>) -> S {
+    fn s1(a: A, s: S, d: LogosToken<Token>) -> S {
         S::ASd(a, Box::new(s))
     }
     #[rule(S -> B S)]
@@ -58,28 +59,28 @@ impl Parser {
         S::Eps
     }
     #[rule(A -> Ta)]
-    fn a1(&mut self, a: LogosToken<PaperToken>) -> A {
+    fn a1(&mut self, a: LogosToken<Token>) -> A {
         self.history.push(A::A);
         A::A
     }
     #[rule(A -> Tc)]
-    fn a2(&mut self, c: LogosToken<PaperToken>) -> A {
+    fn a2(&mut self, c: LogosToken<Token>) -> A {
         self.history.push(A::C);
         A::C
     }
     #[rule(B -> Ta)]
-    fn b1(a: LogosToken<PaperToken>) -> B {
+    fn b1(a: LogosToken<Token>) -> B {
         B::A
     }
     #[rule(B -> Tb)]
-    fn b2(b: LogosToken<PaperToken>) -> B {
+    fn b2(b: LogosToken<Token>) -> B {
         B::B
     }
 }
 
 #[test]
-fn gll() {
-    let mut lexer = PaperToken::lexer("aabd");
+fn paper() {
+    let mut lexer = Token::lexer("aabd");
     let mut parser = Parser {
         history: Vec::new(),
     };
@@ -100,3 +101,9 @@ fn gll() {
     );
     assert_eq!(parser.history.len(), 2);
 }
+
+check_output! {eps, "", [S::Eps]}
+check_output! {single_b, "b", [S::BS(B::B, Box::new(S::Eps))]}
+check_output! {single_a, "a", [S::BS(B::A, Box::new(S::Eps))]}
+check_output! {single_d, "d", []}
+check_output! {ad, "ad", [S::ASd(A::A, Box::new(S::Eps))]}

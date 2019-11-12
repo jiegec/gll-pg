@@ -30,6 +30,7 @@ pub enum Token {
     IntLit,
 }
 
+#[derive(Default)]
 struct Parser {
     literals: Vec<i32>,
 }
@@ -78,7 +79,7 @@ impl Parser {
 }
 
 #[test]
-fn gll() {
+fn ambiguous() {
     let mut lexer = Token::lexer("1 + 2 * 3");
     let mut parser = Parser { literals: vec![] };
     let res = parser.parse(&mut lexer);
@@ -86,3 +87,5 @@ fn gll() {
     assert_eq!(res, [7, 9]);
     assert_eq!(parser.literals[..], [1, 2, 3, 1, 2, 3]);
 }
+
+check_output! {unambiguous, "1 + (2 * -3)", [-5]}
