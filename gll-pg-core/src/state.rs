@@ -26,8 +26,11 @@ pub trait GrammarSymbol {
 /// You don't need to impl it in your code.
 pub trait GrammarLabel {
     type Symbol: PartialEq + GrammarSymbol;
+    /// if self is of form `X ::= a . b`,
+    /// return true if a is a terminal or a non-nullable nonterminal and if b is not eps
     fn first(&self) -> bool;
-    // return Some(lhs) if it is the end
+
+    /// return Some(lhs) if it is the end of a grammar rule `lhs -> ...`, otherwise None
     fn end(&self) -> Option<Self::Symbol>;
 }
 

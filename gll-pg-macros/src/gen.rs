@@ -341,8 +341,11 @@ fn gen_template(
             .unwrap();
         }
 
-        if rule.prod.len() > 1 {
-            // TODO: check nullable
+        // X ::= a . b
+        // a is terminal or a non-nullable nonterminal and if b != eps
+        if rule.prod.len() >= 2
+            && (terminals.contains(&rule.prod[0]) || !first_set[&rule.prod[0]].contains(&None))
+        {
             write!(&mut label_first, "L{}_{}_{},", rule.name, rule_index, 1,).unwrap();
         }
     }
