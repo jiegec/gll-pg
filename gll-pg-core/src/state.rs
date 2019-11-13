@@ -1,12 +1,14 @@
 //! GLL Grammar state and SPPF structure
 
-/// Re-exported `petgraph` structs to avoid requiring dependency of generated code on it.
-pub use petgraph::{
+use petgraph::{
+    dot::Dot,
     graph::{EdgeReference, NodeIndex},
     visit::EdgeRef,
-    Directed, Graph,
 };
+/// Re-exported `petgraph` structs to avoid requiring dependency of generated code on it.
+pub use petgraph::{Directed, Graph};
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::{Debug, Write};
 
 /// GSS Node Label Type
 pub type GSSNode<L> = (L, usize);
@@ -125,7 +127,42 @@ impl<L, S> SPPFNode<L, S> {
     }
 }
 
+impl<L: Ord + Clone + GrammarLabel + Debug> GSSState<L> {
+    /// Print current GSS graph in graphviz format
+    pub fn print_gss_dot(&self) -> String {
+        format!("{:?}", Dot::with_config(&self.graph, &[]))
+    }
+}
+
+impl<L: Ord + Clone + GrammarLabel> GSSState<L>
+where
+    <L as GrammarLabel>::Symbol: Debug,
+{
+    /// Print current SPPF graph in graphviz format
+    pub fn print_sppf_dot(&self) -> String {
+        let mut res = String::new();
+        write!(&mut res, "digraph {{\n").unwrap();
+        for (i, node) in self.sppf_nodes.iter().enumerate() {
+            let label = match node {
+                SPPFNode::Symbol(s, _, _, _) => format!("{:?}", s),
+                SPPFNode::Intermediate(_, _, _, _) => format!("I"),
+                SPPFNode::Packed(_, _, _) => format!("P"),
+                SPPFNode::Dummy => format!("D"),
+            };
+            write!(&mut res, "{} [label={:?}]\n", i, label).unwrap();
+            if let Some(children) = node.children() {
+                for child in children {
+                    write!(&mut res, "{} -> {}\n", i, child).unwrap();
+                }
+            }
+        }
+        write!(&mut res, "}}").unwrap();
+        res
+    }
+}
+
 impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
+    /// The `add` function in the paper
     pub fn add(&mut self, l: L, u: NodeIndex, i: usize, w: SPPFNodeIndex) {
         if !self.visited[i].contains(&(l.clone(), u, w)) {
             self.visited[i].insert((l.clone(), u, w));
@@ -133,6 +170,7 @@ impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
         }
     }
 
+    /// The `pop` function in the paper
     pub fn pop(&mut self, u: NodeIndex, i: usize, z: SPPFNodeIndex) {
         if u != self.initial_node_index {
             let (l, _k) = self.graph[u].clone();
@@ -149,6 +187,7 @@ impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
         }
     }
 
+    /// The `create` function in the paper
     pub fn create(&mut self, l: L, u: NodeIndex, j: usize, w: SPPFNodeIndex) -> NodeIndex {
         let node = (l.clone(), j);
         let v = if let Some(index) = self.nodes.get(&node) {
@@ -172,11 +211,13 @@ impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
         v
     }
 
+    /// The `get_node_t` function in the paper
     pub fn get_node_t(&mut self, x: L::Symbol, i: usize) -> SPPFNodeIndex {
         let h = if x.is_eps() { i } else { i + 1 };
         self.find_or_create_sppf_symbol(x, i, h)
     }
 
+    /// The `get_node_p` function in the paper
     pub fn get_node_p(&mut self, l: L, w: SPPFNodeIndex, z: SPPFNodeIndex) -> SPPFNodeIndex {
         if l.first() {
             return z;
@@ -286,7 +327,7 @@ impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
         self.sppf_nodes.len() - 1
     }
 
-    // collect all symbol leaves of a packed node
+    /// Collect all symbol leaves of a packed node
     pub fn collect_symbols(&self, node: SPPFNodeIndex) -> Vec<SPPFNodeIndex> {
         use SPPFNode::*;
         match &self.sppf_nodes[node] {

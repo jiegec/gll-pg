@@ -16,5 +16,6 @@ macro_rules! check_output {
 
 mod arith;
 mod crazy;
+mod if_else;
 mod left_recursive;
 mod paper;
