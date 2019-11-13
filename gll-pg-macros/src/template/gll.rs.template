@@ -46,6 +46,7 @@ impl {parser_type} {
 
     #[allow(unreachable_code)]
     pub fn parse(&mut self, lexer: &mut logos::Lexer<{token}, {source}>) -> Vec<{res_type}> {
+        use std::collections::{BTreeMap, BTreeSet};
         use gll_pg_core::*;
         use gll_generated::{Label, Symbol};
         use logos::Source;
