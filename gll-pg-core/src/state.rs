@@ -1,14 +1,16 @@
 //! GLL Grammar state and SPPF structure
 
+/// Re-exported `petgraph` structs to avoid requiring dependency of generated code on it.
+pub use petgraph::{dot::Dot, Directed, Graph};
 use petgraph::{
-    dot::Dot,
     graph::{EdgeReference, NodeIndex},
     visit::EdgeRef,
 };
-/// Re-exported `petgraph` structs to avoid requiring dependency of generated code on it.
-pub use petgraph::{Directed, Graph};
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::{Debug, Write};
+/// Re-exported `streaming_iterator` structs to avoid requiring dependency of generated code on it.
+pub use streaming_iterator::StreamingIterator;
+/// Re-exported `typed_arena` structs to avoid requiring dependency of generated code on it.
+pub use typed_arena::Arena;
 
 /// GSS Node Label Type
 pub type GSSNode<L> = (L, usize);
@@ -48,12 +50,12 @@ pub trait GrammarLabel {
 ///
 /// Each grammar rule possible position corresponds to a label.
 /// So store labels for Intermediate and Packed rules.
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub enum SPPFNode<L, S> {
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub enum SPPFNode<L: GrammarLabel> {
     /// $ node in original paper
     Dummy,
     /// (symbol, left, right, children)
-    Symbol(S, usize, usize, Vec<SPPFNodeIndex>),
+    Symbol(L::Symbol, usize, usize, Vec<SPPFNodeIndex>),
     /// (label, left, right, children)
     Intermediate(L, usize, usize, Vec<SPPFNodeIndex>),
     /// (label, split, children)
@@ -62,14 +64,13 @@ pub enum SPPFNode<L, S> {
 
 /// All GSS Parser states.
 /// It is used by generated code, don't use it directly.
-#[derive(Debug)]
 pub struct GSSState<L: Ord + Clone + GrammarLabel> {
     /// Direct GSS graph
     pub graph: Graph<GSSNode<L>, SPPFNodeIndex, Directed>,
     /// Mapping from node to its index
     pub nodes: BTreeMap<GSSNode<L>, NodeIndex>,
     /// All sppf nodes, and nodes reference each other by index
-    pub sppf_nodes: Vec<SPPFNode<L, L::Symbol>>,
+    pub sppf_nodes: Vec<SPPFNode<L>>,
     pub initial_node_index: NodeIndex,
     /// U_j in original paper
     pub visited: Vec<BTreeSet<(L, NodeIndex, SPPFNodeIndex)>>,
@@ -85,7 +86,7 @@ pub struct GSSState<L: Ord + Clone + GrammarLabel> {
     pub current_sppf_node: usize,
 }
 
-impl<L, S> SPPFNode<L, S> {
+impl<L: GrammarLabel> SPPFNode<L> {
     /// Get right extent of the node, panics if it doesn't have it.
     pub fn right_extent(&self) -> usize {
         use SPPFNode::*;
@@ -124,40 +125,6 @@ impl<L, S> SPPFNode<L, S> {
             Intermediate(_, _, _, children) => Some(children),
             _ => panic!("no children for packed and dummy"),
         }
-    }
-}
-
-impl<L: Ord + Clone + GrammarLabel + Debug> GSSState<L> {
-    /// Print current GSS graph in graphviz format
-    pub fn print_gss_dot(&self) -> String {
-        format!("{:?}", Dot::with_config(&self.graph, &[]))
-    }
-}
-
-impl<L: Ord + Clone + GrammarLabel> GSSState<L>
-where
-    <L as GrammarLabel>::Symbol: Debug,
-{
-    /// Print current SPPF graph in graphviz format
-    pub fn print_sppf_dot(&self) -> String {
-        let mut res = String::new();
-        write!(&mut res, "digraph {{\n").unwrap();
-        for (i, node) in self.sppf_nodes.iter().enumerate() {
-            let label = match node {
-                SPPFNode::Symbol(s, _, _, _) => format!("{:?}", s),
-                SPPFNode::Intermediate(_, _, _, _) => format!("I"),
-                SPPFNode::Packed(_, _, _) => format!("P"),
-                SPPFNode::Dummy => format!("D"),
-            };
-            write!(&mut res, "{} [label={:?}]\n", i, label).unwrap();
-            if let Some(children) = node.children() {
-                for child in children {
-                    write!(&mut res, "{} -> {}\n", i, child).unwrap();
-                }
-            }
-        }
-        write!(&mut res, "}}").unwrap();
-        res
     }
 }
 

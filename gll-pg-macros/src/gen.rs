@@ -161,8 +161,8 @@ fn gen_template(
         }
     }
     if config.verbose {
-        println!("T {:?}", terminals);
-        println!("NT {:?}", non_terminals);
+        eprintln!("T {:?}", terminals);
+        eprintln!("NT {:?}", non_terminals);
     }
 
     // FIRST set, None means Eps
@@ -208,16 +208,16 @@ fn gen_template(
         first_set = new;
     }
     if config.verbose {
-        println!("FIRST SET:");
+        eprintln!("FIRST SET:");
         for (nt, set) in &first_set {
-            print!("{}:", nt);
+            eprint!("{}:", nt);
             for s in set.iter() {
                 match s {
-                    Some(s) => print!(" {}", s),
-                    None => print!(" Eps"),
+                    Some(s) => eprint!(" {}", s),
+                    None => eprint!(" Eps"),
                 }
             }
-            println!();
+            eprintln!();
         }
     }
 
@@ -277,16 +277,16 @@ fn gen_template(
         follow_set = new;
     }
     if config.verbose {
-        println!("FOLLOW SET:");
+        eprintln!("FOLLOW SET:");
         for (nt, set) in &follow_set {
-            print!("{}:", nt);
+            eprint!("{}:", nt);
             for s in set.iter() {
                 match s {
-                    Some(s) => print!(" {}", s),
-                    None => print!(" Eps"),
+                    Some(s) => eprint!(" {}", s),
+                    None => eprint!(" Eps"),
                 }
             }
-            println!();
+            eprintln!();
         }
     }
 
@@ -528,106 +528,6 @@ fn gen_template(
     // parsers
     let mut parsers = String::new();
     let indent = "\t";
-    // parseS
-    for nt in &non_terminals {
-        let ty = &rules.iter().find(|rule| rule.name == *nt).unwrap().ty;
-        write!(&mut parsers, "{}fn parse{}(&mut self, input: &Vec<LogosToken<{}>>, state: &gll_pg_core::GSSState<gll_generated::Label>, node: gll_pg_core::SPPFNodeIndex) -> Vec<{}> {{\n", indent, nt, token, ty).unwrap();
-        write!(&mut parsers, "{}\tlet mut res = vec![];\n", indent).unwrap();
-        write!(
-            &mut parsers,
-            "{}\tfor child in state.sppf_nodes[node].children().unwrap() {{\n",
-            indent
-        )
-        .unwrap();
-        write!(
-            &mut parsers,
-            "{}\t\tlet node = &state.sppf_nodes[*child];\n",
-            indent
-        )
-        .unwrap();
-        write!(
-            &mut parsers,
-            "{}\t\tif let gll_pg_core::SPPFNode::Packed(l, k, c) = node {{\n",
-            indent
-        )
-        .unwrap();
-        write!(
-            &mut parsers,
-            "{}\t\t\tlet leaves = state.collect_symbols(*child);\n",
-            indent
-        )
-        .unwrap();
-        write!(&mut parsers, "{}\t\t\tmatch l {{\n", indent).unwrap();
-        for (rule_index, rule) in rules.iter().enumerate() {
-            if rule.name == *nt {
-                if rule.prod.len() > 0 {
-                    // not eps
-                    write!(
-                        &mut parsers,
-                        "{}\t\t\t\tgll_generated::Label::L{}_{}_{} => {{\n",
-                        indent,
-                        nt,
-                        rule_index,
-                        rule.prod.len()
-                    )
-                    .unwrap();
-                } else {
-                    // eps
-                    write!(
-                        &mut parsers,
-                        "{}\t\t\t\tgll_generated::Label::L{}_{} => {{\n",
-                        indent, nt, rule_index
-                    )
-                    .unwrap();
-                };
-                let mut more_indent = String::new();
-                for i in 0..rule.prod.len() {
-                    more_indent.push_str("\t");
-                    if terminals.contains(&rule.prod[i]) {
-                        write!(
-                            &mut parsers,
-                            "{}\t\t\t\t{}let arg{} = input[state.sppf_nodes[leaves[{}]].left_extent()].clone(); {{\n",
-                            indent, more_indent, i, i
-                        )
-                        .unwrap();
-                    } else {
-                        write!(
-                            &mut parsers,
-                            "{}\t\t\t\t{}for arg{} in self.parse{}(input, state, leaves[{}]) {{\n",
-                            indent, more_indent, i, rule.prod[i], i
-                        )
-                        .unwrap();
-                    }
-                }
-                write!(
-                    &mut parsers,
-                    "{}\t\t\t\t\t{}res.push(self.parse{}_{}(",
-                    indent, more_indent, rule.name, rule_index,
-                )
-                .unwrap();
-                for i in 0..rule.prod.len() {
-                    write!(&mut parsers, "arg{}.clone(), ", i).unwrap();
-                }
-                write!(&mut parsers, "));\n",).unwrap();
-                for _ in 0..rule.prod.len() {
-                    write!(&mut parsers, "{}\t\t\t\t{}}}\n", indent, more_indent).unwrap();
-                    more_indent.split_off(more_indent.len() - "\t".len());
-                }
-                write!(&mut parsers, "{}\t\t\t\t}}\n", indent).unwrap();
-            }
-        }
-        write!(
-            &mut parsers,
-            "{}\t\t\t\t_ => panic!(\"Impossible packed node for {}: {{:?}}\", l)\n",
-            indent, nt
-        )
-        .unwrap();
-        write!(&mut parsers, "{}\t\t\t}}\n", indent).unwrap();
-        write!(&mut parsers, "{}\t\t}}\n", indent).unwrap();
-        write!(&mut parsers, "{}\t}}\n", indent).unwrap();
-        write!(&mut parsers, "{}\tres\n", indent).unwrap();
-        write!(&mut parsers, "{}}}\n", indent).unwrap();
-    }
     // parseS_0
     for (rule_index, rule) in rules.iter().enumerate() {
         write!(
@@ -644,6 +544,179 @@ fn gen_template(
         write!(&mut parsers, "{}}}\n", indent).unwrap();
     }
 
+    let mut derive = String::new();
+    let indent = "\t\t";
+    // deriveS
+    for nt in &non_terminals {
+        write!(
+            &mut derive,
+            "{}fn derive{}(&mut self, node: SPPFNodeIndex, mut derivation: usize) -> usize {{\n",
+            indent, nt
+        )
+        .unwrap();
+        write!(
+            &mut derive,
+            "{}\tif let Some(vec) = self.storage.map_{}.get(&node) {{\n",
+            indent, nt
+        )
+        .unwrap();
+        write!(
+            &mut derive,
+            "{}\t\tif let Some(res) = vec.get(derivation) {{\n",
+            indent
+        )
+        .unwrap();
+        write!(&mut derive, "{}\t\t\t return *res;\n", indent).unwrap();
+        write!(&mut derive, "{}\t\t}}\n", indent).unwrap();
+        write!(&mut derive, "{}\t}}\n", indent).unwrap();
+        write!(
+            &mut derive,
+            "{}\tlet symbol_node = &self.state.sppf_nodes[node];\n",
+            indent
+        )
+        .unwrap();
+        write!(
+            &mut derive,
+            "{}\tlet children = symbol_node.children().unwrap();\n",
+            indent
+        )
+        .unwrap();
+        write!(&mut derive, "{}\tfor child in children {{\n", indent).unwrap();
+        write!(
+            &mut derive,
+            "{}\t\tlet current_child = &self.state.sppf_nodes[*child];\n",
+            indent
+        )
+        .unwrap();
+        write!(
+            &mut derive,
+            "{}\t\tif derivation < self.possible_derivations[child] {{\n",
+            indent
+        )
+        .unwrap();
+        write!(
+            &mut derive,
+            "{}\t\t\tif let gll_pg_core::SPPFNode::Packed(l, k, c) = current_child {{\n",
+            indent
+        )
+        .unwrap();
+        write!(
+            &mut derive,
+            "{}\t\t\t\tlet leaves = self.state.collect_symbols(*child);\n",
+            indent
+        )
+        .unwrap();
+        let indent = "\t\t\t\t\t\t";
+        write!(&mut derive, "{}match l {{\n", indent).unwrap();
+        for (rule_index, rule) in rules.iter().enumerate() {
+            if rule.name == *nt {
+                if rule.prod.len() > 0 {
+                    // not eps
+                    write!(
+                        &mut derive,
+                        "{}\tLabel::L{}_{}_{} => {{\n",
+                        indent,
+                        nt,
+                        rule_index,
+                        rule.prod.len()
+                    )
+                    .unwrap();
+                } else {
+                    // eps
+                    write!(
+                        &mut derive,
+                        "{}\tLabel::L{}_{} => {{\n",
+                        indent, nt, rule_index
+                    )
+                    .unwrap();
+                };
+                for i in 0..rule.prod.len() {
+                    write!(
+                        &mut derive,
+                        "{}\t\tlet count{} = self.possible_derivations[&leaves[{}]];\n",
+                        indent, i, i
+                    )
+                    .unwrap();
+                }
+                for i in 0..rule.prod.len() {
+                    if non_terminals.contains(&rule.prod[i]) {
+                        write!(
+                            &mut derive,
+                            "{}\t\tlet index{} = self.derive{}(leaves[{}], (derivation",
+                            indent, i, rule.prod[i], i
+                        )
+                        .unwrap();
+                        for j in (i+1)..rule.prod.len() {
+                            write!(
+                                &mut derive,
+                                " / count{}",
+                                j
+                            )
+                                .unwrap();
+                        }
+                        write!(
+                            &mut derive,
+                            ") % count{});\n",
+                            i
+                        )
+                            .unwrap();
+                    }
+                }
+                for i in 0..rule.prod.len() {
+                    if non_terminals.contains(&rule.prod[i]) {
+                        write!(
+                            &mut derive,
+                            "{}\t\tlet arg{} = &self.storage.arena_{}[index{}];\n",
+                            indent, i, rule.prod[i], i
+                        )
+                            .unwrap();
+                    } else {
+                        write!(
+                            &mut derive,
+                            "{}\t\tlet arg{} = &self.input[self.state.sppf_nodes[leaves[{}]].left_extent()];\n",
+                            indent, i, i,
+                        )
+                        .unwrap();
+                    }
+                }
+                write!(&mut derive, "{}\t\tlet index = self.storage.arena_{}.len();\n", indent, nt).unwrap();
+                write!(&mut derive, "{}\t\tself.storage.map_{}.entry(node).or_insert_with(|| Vec::new()).push(index);\n", indent, nt).unwrap();
+                write!(&mut derive, "{}\t\tlet res = self.parser.parse{}_{}(", indent, nt, rule_index).unwrap();
+                for arg in 0..rule.arg.len() {
+                    write!(&mut derive, "arg{}, ", arg).unwrap();
+                }
+                write!(&mut derive, ");\n").unwrap();
+                write!(&mut derive, "{}\t\tself.storage.arena_{}.push(res);\n", indent, nt).unwrap();
+                write!(&mut derive, "{}\t\treturn index;\n", indent).unwrap();
+                write!(&mut derive, "{}\t}}\n", indent).unwrap();
+            }
+        }
+        let indent = "\t\t";
+        write!(
+            &mut derive,
+            "{}\t\t\t\t\t_ => panic!(\"Impossible packed node for {}: {{:?}}\", l)\n",
+            indent, nt
+        )
+        .unwrap();
+        write!(&mut derive, "{}\t\t\t\t}}\n", indent).unwrap();
+        write!(&mut derive, "{}\t\t\t}}\n", indent).unwrap();
+        write!(&mut derive, "{}\t\t}} else {{\n", indent).unwrap();
+        write!(&mut derive, "{}\t\t\tderivation -= self.possible_derivations[child];\n", indent).unwrap();
+        write!(&mut derive, "{}\t\t}}\n", indent).unwrap();
+        write!(&mut derive, "{}\t}}\n", indent).unwrap();
+        write!(&mut derive, "{}\tunimplemented!()\n", indent).unwrap();
+        write!(&mut derive, "{}}}\n", indent).unwrap();
+    }
+
+    // arenas and maps
+    let mut arenas = String::new();
+    let mut maps = String::new();
+    for nt in &non_terminals {
+        let ty = &rules.iter().find(|rule| rule.name == *nt).unwrap().ty;
+        write!(&mut arenas, "\t\tarena_{}: Vec<{}>,\n", nt, ty).unwrap();
+        write!(&mut maps, "\t\tmap_{}: BTreeMap<usize, Vec<usize>>,\n", nt).unwrap();
+    }
+
     let template = include_str!("template/gll.rs.template");
     let pattern = [
         "{parser_type}",
@@ -658,6 +731,9 @@ fn gen_template(
         "{start_symbol}",
         "{states}",
         "{parsers}",
+        "{arenas}",
+        "{maps}",
+        "{derive}",
     ];
     let replace = [
         // "{parser_type}"
@@ -684,6 +760,12 @@ fn gen_template(
         &states,
         // "{parsers}"
         &parsers,
+        // "{arenas}"
+        &arenas,
+        // "{maps}"
+        &maps,
+        // "{derive}"
+        &derive,
     ];
 
     AhoCorasick::new(&pattern).replace_all(template, &replace)

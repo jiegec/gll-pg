@@ -1,14 +1,19 @@
 mod gll_generated {
+    use super::*;
+    use gll_pg_core::*;
+    use std::fmt::{Debug, Write};
+    use std::iter::Iterator;
+    use std::collections::BTreeMap;
 
     #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-    pub enum Label {
+    pub(super) enum Label {
         Ret,
         L0,
 {labels}
     }
 
     #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-    pub enum Symbol {
+    pub(super) enum Symbol {
         // terminals
 {symbol_terminals}
         // non-terminals
@@ -16,13 +21,13 @@ mod gll_generated {
         Eps,
     }
 
-    impl gll_pg_core::GrammarSymbol for Symbol {
+    impl GrammarSymbol for Symbol {
         fn is_eps(&self) -> bool {
             *self == Symbol::Eps
         }
     }
 
-    impl gll_pg_core::GrammarLabel for Label {
+    impl GrammarLabel for Label {
         type Symbol = Symbol;
 
         fn first(&self) -> bool {
@@ -39,13 +44,137 @@ mod gll_generated {
             }
         }
     }
+
+    #[derive(Default)]
+    struct ParseStorage {
+{arenas}
+{maps}
+    }
+
+    pub(super) struct ParseResult<'a> {
+        parser: &'a mut {parser_type},
+        input: Vec<LogosToken<'a, {token}>>,
+        state: GSSState<Label>,
+        possible_derivations: BTreeMap<SPPFNodeIndex, usize>,
+        storage: ParseStorage,
+        root: SPPFNodeIndex,
+        first: bool,
+        current_derivation: usize,
+    }
+
+    impl<'a> StreamingIterator for ParseResult<'a>  {
+        type Item = {res_type};
+
+        fn advance(&mut self) {
+            if self.first {
+                self.first = false;
+                self.current_derivation = 0;
+            } else {
+                self.current_derivation += 1;
+            }
+            if self.current_derivation < self.possible_derivations[&self.root] {
+                self.deriveExpr(self.root, self.current_derivation);
+            }
+        }
+
+        fn get(&self) -> Option<&Self::Item> {
+            if self.current_derivation < self.possible_derivations[&self.root] {
+                Some(&self.storage.arena_Expr[self.storage.map_Expr[&self.root][self.current_derivation]])
+            } else {
+                None
+            }
+        }
+    }
+
+    impl<'a> ParseResult<'a> {
+        pub(super) fn new(input: Vec<LogosToken<'a, {token}>>, parser: &'a mut {parser_type}, state: GSSState<Label>, root: SPPFNodeIndex) -> Self {
+            let mut res = Self {
+                input,
+                parser,
+                state,
+                possible_derivations: BTreeMap::new(),
+                storage: ParseStorage::default(),
+                root,
+                first: true,
+                current_derivation: 0,
+            };
+            let mut temp = BTreeMap::new();
+            res.calc_derivation(res.root, &mut temp);
+            res.possible_derivations = temp;
+            res
+        }
+
+        fn calc_derivation(&self, node: SPPFNodeIndex, possible_derivations: &mut BTreeMap<SPPFNodeIndex, usize>) -> usize {
+            if let Some(count) = possible_derivations.get(&node) {
+                return *count;
+            }
+            let symbol_node = &self.state.sppf_nodes[node];
+            let children = symbol_node.children().unwrap();
+            let ret = if children.len() > 0 {
+                let mut res = 0;
+                for child in children {
+                    let current_child = &self.state.sppf_nodes[*child];
+                    if let gll_pg_core::SPPFNode::Packed(l, k, c) = current_child {
+                        let leaves = self.state.collect_symbols(*child);
+                        let mut prod = 1;
+                        for leaf in leaves {
+                            prod *= self.calc_derivation(leaf, possible_derivations);
+                        }
+                        possible_derivations.insert(*child, prod);
+                        res += prod;
+                    }
+                }
+                res
+            } else {
+                1
+            };
+            possible_derivations.insert(node, ret);
+            ret
+        }
+
+{derive}
+    }
+
+    impl<'a> ParseResult<'a> {
+        /// Print current GSS graph in graphviz format
+        pub fn print_gss_dot(&self) -> String {
+            format!("{:?}", Dot::with_config(&self.state.graph, &[]))
+        }
+    }
+
+    impl<'a> ParseResult<'a> {
+        /// Print current SPPF graph in graphviz format
+        pub fn print_sppf_dot(&self) -> String {
+            let mut res = String::new();
+            write!(&mut res, "digraph {{\n").unwrap();
+            for (i, node) in self.state.sppf_nodes.iter().enumerate() {
+                let label = match node {
+                    SPPFNode::Symbol(s, _, _, _) => format!("{:?}", s),
+                    SPPFNode::Intermediate(_, _, _, _) => format!("I"),
+                    SPPFNode::Packed(_, _, _) => format!("P"),
+                    SPPFNode::Dummy => format!("D"),
+                };
+                write!(&mut res, "{} [label={:?}]\n", i, label).unwrap();
+                if let Some(children) = node.children() {
+                    for child in children {
+                        write!(&mut res, "{} -> {}\n", i, child).unwrap();
+                    }
+                }
+            }
+            write!(&mut res, "}}").unwrap();
+            res
+        }
+    }
+
 }
 
 impl {parser_type} {
 {parsers}
 
+    /// Run generated GLL parser on lexer.
+    /// Return all possible derivations.
     #[allow(unreachable_code)]
-    pub fn parse(&mut self, lexer: &mut logos::Lexer<{token}, {source}>) -> Vec<{res_type}> {
+    fn parse<'a>(&'a mut self, lexer: &'a mut logos::Lexer<{token}, {source}>) -> Option<gll_generated::ParseResult<'a>> {
         use std::collections::{BTreeMap, BTreeSet};
         use gll_pg_core::*;
         use gll_generated::{Label, Symbol};
@@ -102,9 +231,11 @@ impl {parser_type} {
                                 false
                             }
                         }) {
-                            return self.parse{start_symbol}(&input, &state, index);
+                            let result = gll_generated::ParseResult::new(input, self, state, index);
+                            return Some(result);
+                            // return self.parse{start_symbol}(&input, &state, index);
                         } else {
-                            return vec![];
+                            return None;
                         }
                     }
                 }
