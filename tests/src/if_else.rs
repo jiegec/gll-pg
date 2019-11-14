@@ -1,4 +1,4 @@
-use gll_pg_core::LogosToken;
+use gll_pg_core::*;
 use gll_pg_macros::gll;
 use logos::Logos;
 
@@ -33,12 +33,12 @@ impl Parser {
         S::Eps
     }
     #[rule(S -> If S Else S)]
-    fn s2(_: LogosToken<Token>, s1: S, _: LogosToken<Token>, s2: S) -> S {
-        S::IfElse(Box::new(s1), Box::new(s2))
+    fn s2(_: &LogosToken<Token>, s1: &S, _: &LogosToken<Token>, s2: &S) -> S {
+        S::IfElse(Box::new(s1.clone()), Box::new(s2.clone()))
     }
     #[rule(S -> If S)]
-    fn s3(_: LogosToken<Token>, s1: S) -> S {
-        S::If(Box::new(s1))
+    fn s3(_: &LogosToken<Token>, s1: &S) -> S {
+        S::If(Box::new(s1.clone()))
     }
 }
 

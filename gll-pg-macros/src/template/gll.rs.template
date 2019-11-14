@@ -73,13 +73,13 @@ mod gll_generated {
                 self.current_derivation += 1;
             }
             if self.current_derivation < self.possible_derivations[&self.root] {
-                self.deriveExpr(self.root, self.current_derivation);
+                self.derive{start_symbol}(self.root, self.current_derivation);
             }
         }
 
         fn get(&self) -> Option<&Self::Item> {
             if self.current_derivation < self.possible_derivations[&self.root] {
-                Some(&self.storage.arena_Expr[self.storage.map_Expr[&self.root][self.current_derivation]])
+                Some(&self.storage.arena_{start_symbol}[self.storage.map_{start_symbol}[&self.root][self.current_derivation]])
             } else {
                 None
             }

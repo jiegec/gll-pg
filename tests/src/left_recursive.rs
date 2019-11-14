@@ -1,4 +1,4 @@
-use gll_pg_core::LogosToken;
+use gll_pg_core::*;
 use gll_pg_macros::gll;
 use logos::Logos;
 
@@ -20,8 +20,8 @@ struct Parser {}
 #[gll(S, Token)]
 impl Parser {
     #[rule(S -> S Ta)]
-    fn s1(s: usize, a: LogosToken<Token>) -> usize {
-        s + 1
+    fn s1(s: &usize, a: &LogosToken<Token>) -> usize {
+        *s + 1
     }
     #[rule(S ->)]
     fn s2() -> usize {
