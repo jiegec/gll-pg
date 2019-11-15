@@ -176,8 +176,6 @@ mod gll_generated {
 }
 
 impl {parser_type} {
-{parsers}
-
     /// Run generated GLL parser on lexer.
     /// Return all possible derivations as a streaming iterator.
     #[allow(unreachable_code)]

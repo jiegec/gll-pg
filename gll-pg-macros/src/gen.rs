@@ -1,7 +1,8 @@
 //! Much of code below is derived from MashPlant/lalr1.
 
 use aho_corasick::AhoCorasick;
-use quote::ToTokens;
+use proc_macro::TokenStream;
+use quote::{format_ident, quote, ToTokens};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write as FmtWrite;
 use std::fs::File;
@@ -16,7 +17,11 @@ struct GenConfig {
 
 enum ArgInfo {
     Self_,
-    Arg { name: String, ty: String },
+    Arg {
+        name: String,
+        ty: String,
+        arg: syn::PatType,
+    },
 }
 
 fn parse_arg(arg: &syn::FnArg) -> ArgInfo {
@@ -25,6 +30,7 @@ fn parse_arg(arg: &syn::FnArg) -> ArgInfo {
         syn::FnArg::Typed(arg) => ArgInfo::Arg {
             name: arg.pat.clone().into_token_stream().to_string(),
             ty: arg.ty.clone().into_token_stream().to_string(),
+            arg: arg.clone(),
         },
     }
 }
@@ -47,8 +53,10 @@ struct ProdRule {
     ty: String,
     // name, var, type
     prod: Vec<String>,
-    arg: Vec<(String, String)>,
-    body: String,
+    arg: Vec<(String, String, syn::PatType)>,
+    // original syn structs
+    body: syn::Block,
+    sig: syn::Signature,
 }
 
 fn first_set_rhs(
@@ -87,7 +95,7 @@ fn gen_template(
     token: String,
     parser_impl: &syn::ItemImpl,
     config: &GenConfig,
-) -> String {
+) -> TokenStream {
     let parser_type = parser_impl.self_ty.as_ref();
     let parser_def = parser_type.into_token_stream().to_string();
     let mut rules = vec![];
@@ -141,7 +149,7 @@ fn gen_template(
                 Some(ArgInfo::Self_) => 1,
                 _ => 0,
             };
-            let rhs_arg: Vec<(String, String)> = rhs_arg
+            let rhs_arg: Vec<(String, String, syn::PatType)> = rhs_arg
                 .into_iter()
                 .skip(skip_self)
                 .map(|arg| match arg {
@@ -149,7 +157,7 @@ fn gen_template(
                         "Method `{}` takes self argument at illegal position.",
                         method.sig.ident
                     ),
-                    ArgInfo::Arg { name, ty } => (name, ty),
+                    ArgInfo::Arg { name, ty, arg } => (name, ty, arg),
                 })
                 .collect();
             if lhs == start_symbol {
@@ -160,7 +168,8 @@ fn gen_template(
                 ty: lhs_ty,
                 prod: rhs,
                 arg: rhs_arg,
-                body: method.block.to_token_stream().to_string(),
+                body: method.block.clone(),
+                sig: method.sig.clone(),
             });
         } else {
             panic!("Impl block of gll should only contain methods.");
@@ -179,7 +188,7 @@ fn gen_template(
         })
         .zip(rules.iter())
     {
-        for ((name, arg), prod) in rule.arg.iter().zip(rule.prod.iter()) {
+        for ((name, arg, _pat), prod) in rule.arg.iter().zip(rule.prod.iter()) {
             if let Some(ty) = type_mapping.get(prod) {
                 let expected = format!("& {}", ty);
                 if *arg != expected {
@@ -577,25 +586,6 @@ fn gen_template(
         }
     }
 
-    // parsers
-    let mut parsers = String::new();
-    let indent = "\t";
-    // parseS_0
-    for (rule_index, rule) in rules.iter().enumerate() {
-        write!(
-            &mut parsers,
-            "{}fn parse{}_{}(&mut self, ",
-            indent, rule.name, rule_index
-        )
-        .unwrap();
-        for arg in &rule.arg {
-            write!(&mut parsers, "{}: {},", arg.0, arg.1).unwrap();
-        }
-        write!(&mut parsers, ") -> {} {{\n", rule.ty).unwrap();
-        write!(&mut parsers, "{}{}\n", indent, rule.body).unwrap();
-        write!(&mut parsers, "{}}}\n", indent).unwrap();
-    }
-
     let mut derive = String::new();
     let indent = "\t\t";
     // deriveS
@@ -792,7 +782,6 @@ fn gen_template(
         "{label_end}",
         "{start_symbol}",
         "{states}",
-        "{parsers}",
         "{arenas}",
         "{maps}",
         "{derive}",
@@ -820,8 +809,6 @@ fn gen_template(
         &start_symbol,
         // "{states}"
         &states,
-        // "{parsers}"
-        &parsers,
         // "{arenas}"
         &arenas,
         // "{maps}"
@@ -830,10 +817,53 @@ fn gen_template(
         &derive,
     ];
 
-    AhoCorasick::new(&pattern).replace_all(template, &replace)
+    let str = AhoCorasick::new(&pattern).replace_all(template, &replace);
+    let mut stream: TokenStream = str.parse().unwrap();
+
+    // parsers
+    // parseS_0
+    for (rule_index, rule) in rules.iter().enumerate() {
+        let name = format_ident!("parse{}_{}", rule.name, rule_index);
+        let parser = format_ident!("{}", parser_def);
+        let args = rule.arg.iter().map(|(_name, _ty, pat)| pat);
+        let body = rule.body.clone();
+        let output = rule.sig.output.clone();
+        let parser = quote! {
+            impl #parser {
+                fn #name(&mut self, #(#args),* ) #output {
+                    #body
+                }
+            }
+        };
+        stream.extend::<TokenStream>(parser.into());
+        /*
+        let mut parsers = String::new();
+        write!(
+            &mut parsers,
+            "{}impl {} {{",
+            indent, parser_def
+        )
+            .unwrap();
+        write!(
+            &mut parsers,
+            "{}fn parse{}_{}(&mut self, ",
+            indent, rule.name, rule_index
+        )
+            .unwrap();
+        for arg in &rule.arg {
+            write!(&mut parsers, "{}: {},", arg.0, arg.1).unwrap();
+        }
+        write!(&mut parsers, ") -> {} {{\n", rule.ty).unwrap();
+        stream.extend(parsers.parse::<proc_macro::TokenStream>().unwrap());
+        stream.extend(proc_macro::TokenStream::from(rule.body.to_token_stream()));
+        stream.extend(String::from("}}}}").parse::<proc_macro::TokenStream>().unwrap());
+        */
+    }
+
+    stream
 }
 
-fn gen_string(attr: proc_macro::TokenStream, parser_impl: syn::ItemImpl) -> String {
+fn gen_token_stream(attr: proc_macro::TokenStream, parser_impl: syn::ItemImpl) -> TokenStream {
     let mut iter = attr.clone().into_iter();
     let start_symbol = match iter.next() {
         Some(proc_macro::TokenTree::Ident(ident)) => ident.to_string(),
@@ -853,7 +883,7 @@ fn gen_string(attr: proc_macro::TokenStream, parser_impl: syn::ItemImpl) -> Stri
     // replace
     if config.verbose {
         let mut file = File::create("gll-gen.rs").unwrap();
-        write!(file, "{}", res).unwrap();
+        write!(file, "{}", res.to_string()).unwrap();
     }
     res
 }
@@ -862,6 +892,5 @@ pub fn generate(
     attr: proc_macro::TokenStream,
     parser_impl: syn::ItemImpl,
 ) -> proc_macro::TokenStream {
-    let string = gen_string(attr, parser_impl);
-    string.parse().unwrap()
+    gen_token_stream(attr, parser_impl)
 }
