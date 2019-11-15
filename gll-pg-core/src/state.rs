@@ -252,6 +252,7 @@ impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
     }
 
     fn find_or_create_sppf_intermediate(&mut self, l: L, i: usize, j: usize) -> SPPFNodeIndex {
+        // TODO: linear search is slow
         for (index, node) in self.sppf_nodes.iter().enumerate() {
             if let SPPFNode::Intermediate(node_l, node_i, node_j, _) = node {
                 if *node_l == l && *node_i == i && *node_j == j {
@@ -284,6 +285,7 @@ impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
     }
 
     fn has_packed_child(&self, node: SPPFNodeIndex, l: &L, k: usize) -> bool {
+        // TODO: linear search is slow
         if let Some(children) = self.sppf_nodes[node].children() {
             return children.iter().any(|index| match &self.sppf_nodes[*index] {
                 SPPFNode::Packed(node_l, node_k, _) => node_l == l && *node_k == k,

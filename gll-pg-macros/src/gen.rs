@@ -819,6 +819,7 @@ fn gen_template(
 
     let str = AhoCorasick::new(&pattern).replace_all(template, &replace);
     let mut stream: TokenStream = str.parse().unwrap();
+    let mut parsers = TokenStream::new();
 
     // parsers
     // parseS_0
@@ -835,30 +836,14 @@ fn gen_template(
                 }
             }
         };
-        stream.extend::<TokenStream>(parser.into());
-        /*
-        let mut parsers = String::new();
-        write!(
-            &mut parsers,
-            "{}impl {} {{",
-            indent, parser_def
-        )
-            .unwrap();
-        write!(
-            &mut parsers,
-            "{}fn parse{}_{}(&mut self, ",
-            indent, rule.name, rule_index
-        )
-            .unwrap();
-        for arg in &rule.arg {
-            write!(&mut parsers, "{}: {},", arg.0, arg.1).unwrap();
-        }
-        write!(&mut parsers, ") -> {} {{\n", rule.ty).unwrap();
-        stream.extend(parsers.parse::<proc_macro::TokenStream>().unwrap());
-        stream.extend(proc_macro::TokenStream::from(rule.body.to_token_stream()));
-        stream.extend(String::from("}}}}").parse::<proc_macro::TokenStream>().unwrap());
-        */
+        parsers.extend::<TokenStream>(parser.into());
     }
+    if config.verbose {
+        let mut file = File::create("gll-gen.rs").unwrap();
+        write!(file, "{}", str).unwrap();
+        write!(file, "{}", parsers).unwrap();
+    }
+    stream.extend(parsers);
 
     stream
 }
@@ -879,13 +864,7 @@ fn gen_token_stream(attr: proc_macro::TokenStream, parser_impl: syn::ItemImpl) -
     };
     let config = gen_config(&parser_impl);
 
-    let res = gen_template(start_symbol, token, &parser_impl, &config);
-    // replace
-    if config.verbose {
-        let mut file = File::create("gll-gen.rs").unwrap();
-        write!(file, "{}", res.to_string()).unwrap();
-    }
-    res
+    gen_template(start_symbol, token, &parser_impl, &config)
 }
 
 pub fn generate(
