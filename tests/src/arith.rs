@@ -36,7 +36,6 @@ struct Parser {
 }
 
 #[gll(Expr, Token)]
-#[verbose]
 impl Parser {
     // you can omit self
     #[rule(Expr -> Expr Add Expr)]

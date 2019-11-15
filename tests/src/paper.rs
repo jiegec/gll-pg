@@ -47,7 +47,7 @@ struct Parser {
 #[gll(S, Token)]
 impl Parser {
     #[rule(S -> A S Td)]
-    fn s1(a: &A, s: &S, d: &LogosToken<Token>) -> S {
+    fn s1(a: &A, s: &S, _d: &LogosToken<Token>) -> S {
         S::ASd(a.clone(), Box::new(s.clone()))
     }
     #[rule(S -> B S)]
@@ -59,21 +59,21 @@ impl Parser {
         S::Eps
     }
     #[rule(A -> Ta)]
-    fn a1(&mut self, a: &LogosToken<Token>) -> A {
+    fn a1(&mut self, _a: &LogosToken<Token>) -> A {
         self.history.push(A::A);
         A::A
     }
     #[rule(A -> Tc)]
-    fn a2(&mut self, c: &LogosToken<Token>) -> A {
+    fn a2(&mut self, _c: &LogosToken<Token>) -> A {
         self.history.push(A::C);
         A::C
     }
     #[rule(B -> Ta)]
-    fn b1(a: &LogosToken<Token>) -> B {
+    fn b1(_a: &LogosToken<Token>) -> B {
         B::A
     }
     #[rule(B -> Tb)]
-    fn b2(b: &LogosToken<Token>) -> B {
+    fn b2(_b: &LogosToken<Token>) -> B {
         B::B
     }
 }

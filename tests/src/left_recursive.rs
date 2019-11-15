@@ -20,7 +20,7 @@ struct Parser {}
 #[gll(S, Token)]
 impl Parser {
     #[rule(S -> S Ta)]
-    fn s1(s: &usize, a: &LogosToken<Token>) -> usize {
+    fn s1(s: &usize, _a: &LogosToken<Token>) -> usize {
         *s + 1
     }
     #[rule(S ->)]
