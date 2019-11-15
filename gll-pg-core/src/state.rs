@@ -198,33 +198,19 @@ impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
                 if let Some(t) = l.end() {
                     // t = X
                     let y = self.find_or_create_sppf_symbol(t, j, i);
-                    if let Some(children) = self.sppf_nodes[y].children() {
-                        if !children.iter().any(|index| match &self.sppf_nodes[*index] {
-                            SPPFNode::Packed(node_l, node_k, _) => *node_l == l && *node_k == k,
-                            _ => false,
-                        }) {
-                            let len = self.sppf_nodes.len();
-                            self.sppf_nodes[y].children_mut().unwrap().push(len);
-                            self.sppf_nodes.push(SPPFNode::Packed(l, k, vec![w, z]));
-                        }
-                    } else {
-                        unreachable!()
+                    if !self.has_packed_child(y, &l, k) {
+                        let len = self.sppf_nodes.len();
+                        self.sppf_nodes[y].children_mut().unwrap().push(len);
+                        self.sppf_nodes.push(SPPFNode::Packed(l, k, vec![w, z]));
                     }
                     y
                 } else {
                     // t = l
                     let y = self.find_or_create_sppf_intermediate(l.clone(), j, i);
-                    if let Some(children) = self.sppf_nodes[y].children() {
-                        if !children.iter().any(|index| match &self.sppf_nodes[*index] {
-                            SPPFNode::Packed(node_l, node_k, _) => *node_l == l && *node_k == k,
-                            _ => false,
-                        }) {
-                            let len = self.sppf_nodes.len();
-                            self.sppf_nodes[y].children_mut().unwrap().push(len);
-                            self.sppf_nodes.push(SPPFNode::Packed(l, k, vec![w, z]));
-                        }
-                    } else {
-                        unreachable!()
+                    if !self.has_packed_child(y, &l, k) {
+                        let len = self.sppf_nodes.len();
+                        self.sppf_nodes[y].children_mut().unwrap().push(len);
+                        self.sppf_nodes.push(SPPFNode::Packed(l, k, vec![w, z]));
                     }
                     y
                 }
@@ -233,33 +219,19 @@ impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
                 if let Some(t) = l.end() {
                     // t = X
                     let y = self.find_or_create_sppf_symbol(t, k, i);
-                    if let Some(children) = self.sppf_nodes[y].children() {
-                        if !children.iter().any(|index| match &self.sppf_nodes[*index] {
-                            SPPFNode::Packed(node_l, node_k, _) => *node_l == l && *node_k == k,
-                            _ => false,
-                        }) {
-                            let len = self.sppf_nodes.len();
-                            self.sppf_nodes[y].children_mut().unwrap().push(len);
-                            self.sppf_nodes.push(SPPFNode::Packed(l, k, vec![z]));
-                        }
-                    } else {
-                        unreachable!()
+                    if !self.has_packed_child(y, &l, k) {
+                        let len = self.sppf_nodes.len();
+                        self.sppf_nodes[y].children_mut().unwrap().push(len);
+                        self.sppf_nodes.push(SPPFNode::Packed(l, k, vec![z]));
                     }
                     y
                 } else {
                     // t = l
                     let y = self.find_or_create_sppf_intermediate(l.clone(), k, i);
-                    if let Some(children) = self.sppf_nodes[y].children() {
-                        if !children.iter().any(|index| match &self.sppf_nodes[*index] {
-                            SPPFNode::Packed(node_l, node_k, _) => *node_l == l && *node_k == k,
-                            _ => false,
-                        }) {
-                            let len = self.sppf_nodes.len();
-                            self.sppf_nodes[y].children_mut().unwrap().push(len);
-                            self.sppf_nodes.push(SPPFNode::Packed(l, k, vec![z]));
-                        }
-                    } else {
-                        unreachable!()
+                    if !self.has_packed_child(y, &l, k) {
+                        let len = self.sppf_nodes.len();
+                        self.sppf_nodes[y].children_mut().unwrap().push(len);
+                        self.sppf_nodes.push(SPPFNode::Packed(l, k, vec![z]));
                     }
                     y
                 }
@@ -308,6 +280,17 @@ impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
                 .map(|node| self.collect_symbols(*node))
                 .flatten()
                 .collect(),
+        }
+    }
+
+    fn has_packed_child(&self, node: SPPFNodeIndex, l: &L, k: usize) -> bool {
+        if let Some(children) = self.sppf_nodes[node].children() {
+            return children.iter().any(|index| match &self.sppf_nodes[*index] {
+                SPPFNode::Packed(node_l, node_k, _) => node_l == l && *node_k == k,
+                _ => false,
+            });
+        } else {
+            unreachable!()
         }
     }
 }
