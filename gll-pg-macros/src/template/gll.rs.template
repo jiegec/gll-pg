@@ -145,31 +145,12 @@ mod gll_generated {
     impl<'a> ParseResult<'a> {
         /// Print current GSS graph in graphviz format
         pub fn print_gss_dot(&self) -> String {
-            format!("{:?}", Dot::with_config(&self.state.graph, &[]))
+            self.state.print_gss_dot()
         }
-    }
 
-    impl<'a> ParseResult<'a> {
         /// Print current SPPF graph in graphviz format
         pub fn print_sppf_dot(&self) -> String {
-            let mut res = String::new();
-            write!(&mut res, "digraph {{\n").unwrap();
-            for (i, node) in self.state.sppf_nodes.iter().enumerate() {
-                let label = match node {
-                    SPPFNode::Symbol(s, _, _, _) => format!("{:?}", s),
-                    SPPFNode::Intermediate(_, _, _, _) => format!("I"),
-                    SPPFNode::Packed(_, _, _) => format!("P"),
-                    SPPFNode::Dummy => format!("D"),
-                };
-                write!(&mut res, "{} [label={:?}]\n", i, label).unwrap();
-                if let Some(children) = node.children() {
-                    for child in children {
-                        write!(&mut res, "{} -> {}\n", i, child).unwrap();
-                    }
-                }
-            }
-            write!(&mut res, "}}").unwrap();
-            res
+            self.state.print_sppf_dot()
         }
     }
 
@@ -238,7 +219,6 @@ impl {parser_type} {
                         }) {
                             let result = gll_generated::ParseResult::new(input, self, state, index);
                             return Some(result);
-                            // return self.parse{start_symbol}(&input, &state, index);
                         } else {
                             return None;
                         }

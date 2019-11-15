@@ -1,3 +1,6 @@
+//! Small wrapper for Logos token
+//!
+
 use logos;
 
 /// A wrapper around Logos token type, providing its slice and kind.

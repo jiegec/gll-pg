@@ -1,3 +1,5 @@
+//! A direct left recursive grammar
+
 use gll_pg_core::*;
 use gll_pg_macros::gll;
 use logos::Logos;

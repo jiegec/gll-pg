@@ -7,6 +7,7 @@ use petgraph::{
     visit::EdgeRef,
 };
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::{Debug, Write};
 /// Re-exported `streaming_iterator` structs to avoid requiring dependency of generated code on it.
 pub use streaming_iterator::StreamingIterator;
 
@@ -19,15 +20,15 @@ pub type SPPFNodeIndex = usize;
 /// A common trait that all symbols should impl,
 /// the symbols and impl are generated.
 /// You don't need to impl it in your code.
-pub trait GrammarSymbol {
+pub trait GrammarSymbol: Debug + PartialEq {
     fn is_eps(&self) -> bool;
 }
 
 /// A common trait that all labels  should impl,
 /// the labels and impl are generated.
 /// You don't need to impl it in your code.
-pub trait GrammarLabel {
-    type Symbol: PartialEq + GrammarSymbol;
+pub trait GrammarLabel: Debug {
+    type Symbol: GrammarSymbol;
     /// if self is of form `X ::= a . b`,
     /// return true if a is a terminal or a non-nullable nonterminal and if b is not eps
     fn first(&self) -> bool;
@@ -294,5 +295,32 @@ impl<L: Ord + Clone + GrammarLabel> GSSState<L> {
         } else {
             unreachable!()
         }
+    }
+
+    /// Print current SPPF graph in graphviz format
+    pub fn print_sppf_dot(&self) -> String {
+        let mut res = String::new();
+        write!(&mut res, "digraph {{\n").unwrap();
+        for (i, node) in self.sppf_nodes.iter().enumerate() {
+            let label = match node {
+                SPPFNode::Symbol(s, _, _, _) => format!("{:?}", s),
+                SPPFNode::Intermediate(_, _, _, _) => format!("I"),
+                SPPFNode::Packed(_, _, _) => format!("P"),
+                SPPFNode::Dummy => format!("D"),
+            };
+            write!(&mut res, "{} [label={:?}]\n", i, label).unwrap();
+            if let Some(children) = node.children() {
+                for child in children {
+                    write!(&mut res, "{} -> {}\n", i, child).unwrap();
+                }
+            }
+        }
+        write!(&mut res, "}}").unwrap();
+        res
+    }
+
+    /// Print current GSS graph in graphviz format
+    pub fn print_gss_dot(&self) -> String {
+        format!("{:?}", Dot::with_config(&self.graph, &[]))
     }
 }

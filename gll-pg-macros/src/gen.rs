@@ -10,11 +10,13 @@ use std::io::Write;
 use syn;
 use syn::spanned::Spanned;
 
+/// Configurations parsed from attrs
 #[derive(Default)]
 struct GenConfig {
     verbose: bool,
 }
 
+/// Function argument info
 enum ArgInfo {
     Self_,
     Arg {
@@ -24,6 +26,7 @@ enum ArgInfo {
     },
 }
 
+/// Convert syn::FnArg into ArgInfo
 fn parse_arg(arg: &syn::FnArg) -> ArgInfo {
     match arg {
         syn::FnArg::Receiver(_) => ArgInfo::Self_,
@@ -35,6 +38,7 @@ fn parse_arg(arg: &syn::FnArg) -> ArgInfo {
     }
 }
 
+/// Create GenConfig from attrs
 fn gen_config(parser_impl: &syn::ItemImpl) -> GenConfig {
     let mut verbose = false;
     for attr in &parser_impl.attrs {
@@ -48,6 +52,7 @@ fn gen_config(parser_impl: &syn::ItemImpl) -> GenConfig {
     GenConfig { verbose }
 }
 
+/// Represent a production rule.
 struct ProdRule {
     name: String,
     ty: String,
@@ -59,6 +64,7 @@ struct ProdRule {
     sig: syn::Signature,
 }
 
+/// Calculate the FIRST set of part of rhs
 fn first_set_rhs(
     rule: &ProdRule,
     start: usize,
