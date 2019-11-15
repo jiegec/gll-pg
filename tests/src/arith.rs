@@ -5,7 +5,7 @@ use gll_pg_macros::gll;
 use logos::Logos;
 
 #[derive(Logos, Debug, Eq, PartialEq, Clone)]
-pub enum Token {
+enum Token {
     #[end]
     End,
     #[error]
@@ -36,7 +36,6 @@ struct Parser {
 }
 
 #[gll(Expr, Token)]
-#[verbose]
 impl Parser {
     // you can omit self
     #[rule(Expr -> Expr Add Expr)]

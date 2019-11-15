@@ -300,25 +300,27 @@ fn gen_template(
     for (rule_index, rule) in rules.iter().enumerate() {
         write!(
             &mut labels,
-            "\t\tL{}_{},// {} -> . {}\n",
-            rule.name,
-            rule_index,
+            "\t\t/// {} -> . {}\n",
             rule.name,
             rule.prod.join(" ")
         )
         .unwrap();
+        write!(&mut labels, "\t\tL{}_{},\n", rule.name, rule_index,).unwrap();
         if rule.prod.len() > 0 {
             // not eps
             for prod_index in 1..rule.prod.len() + 1 {
                 write!(
                     &mut labels,
-                    "\t\tL{}_{}_{}, // {} -> {} . {}\n",
-                    rule.name,
-                    rule_index,
-                    prod_index,
+                    "\t\t/// {} -> {} . {}\n",
                     rule.name,
                     rule.prod[0..prod_index].join(" "),
                     rule.prod[prod_index..].join(" ")
+                )
+                .unwrap();
+                write!(
+                    &mut labels,
+                    "\t\tL{}_{}_{},\n",
+                    rule.name, rule_index, prod_index,
                 )
                 .unwrap();
             }
@@ -646,20 +648,10 @@ fn gen_template(
                             indent, i, rule.prod[i], i
                         )
                         .unwrap();
-                        for j in (i+1)..rule.prod.len() {
-                            write!(
-                                &mut derive,
-                                " / count{}",
-                                j
-                            )
-                                .unwrap();
+                        for j in (i + 1)..rule.prod.len() {
+                            write!(&mut derive, " / count{}", j).unwrap();
                         }
-                        write!(
-                            &mut derive,
-                            ") % count{});\n",
-                            i
-                        )
-                            .unwrap();
+                        write!(&mut derive, ") % count{});\n", i).unwrap();
                     }
                 }
                 for i in 0..rule.prod.len() {
@@ -669,7 +661,7 @@ fn gen_template(
                             "{}\t\tlet arg{} = &self.storage.arena_{}[index{}];\n",
                             indent, i, rule.prod[i], i
                         )
-                            .unwrap();
+                        .unwrap();
                     } else {
                         write!(
                             &mut derive,
@@ -679,14 +671,29 @@ fn gen_template(
                         .unwrap();
                     }
                 }
-                write!(&mut derive, "{}\t\tlet index = self.storage.arena_{}.len();\n", indent, nt).unwrap();
+                write!(
+                    &mut derive,
+                    "{}\t\tlet index = self.storage.arena_{}.len();\n",
+                    indent, nt
+                )
+                .unwrap();
                 write!(&mut derive, "{}\t\tself.storage.map_{}.entry(node).or_insert_with(|| Vec::new()).push(index);\n", indent, nt).unwrap();
-                write!(&mut derive, "{}\t\tlet res = self.parser.parse{}_{}(", indent, nt, rule_index).unwrap();
+                write!(
+                    &mut derive,
+                    "{}\t\tlet res = self.parser.parse{}_{}(",
+                    indent, nt, rule_index
+                )
+                .unwrap();
                 for arg in 0..rule.arg.len() {
                     write!(&mut derive, "arg{}, ", arg).unwrap();
                 }
                 write!(&mut derive, ");\n").unwrap();
-                write!(&mut derive, "{}\t\tself.storage.arena_{}.push(res);\n", indent, nt).unwrap();
+                write!(
+                    &mut derive,
+                    "{}\t\tself.storage.arena_{}.push(res);\n",
+                    indent, nt
+                )
+                .unwrap();
                 write!(&mut derive, "{}\t\treturn index;\n", indent).unwrap();
                 write!(&mut derive, "{}\t}}\n", indent).unwrap();
             }
@@ -701,7 +708,12 @@ fn gen_template(
         write!(&mut derive, "{}\t\t\t\t}}\n", indent).unwrap();
         write!(&mut derive, "{}\t\t\t}}\n", indent).unwrap();
         write!(&mut derive, "{}\t\t}} else {{\n", indent).unwrap();
-        write!(&mut derive, "{}\t\t\tderivation -= self.possible_derivations[child];\n", indent).unwrap();
+        write!(
+            &mut derive,
+            "{}\t\t\tderivation -= self.possible_derivations[child];\n",
+            indent
+        )
+        .unwrap();
         write!(&mut derive, "{}\t\t}}\n", indent).unwrap();
         write!(&mut derive, "{}\t}}\n", indent).unwrap();
         write!(&mut derive, "{}\tunimplemented!()\n", indent).unwrap();
