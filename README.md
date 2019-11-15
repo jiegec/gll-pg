@@ -39,8 +39,8 @@ struct Parser {}
 #[gll(S, Token)]
 impl Parser {
     #[rule(S -> S Ta)]
-    fn s1(s: usize, a: LogosToken<Token>) -> usize {
-        s + 1
+    fn s1(s: &usize, _a: &LogosToken<Token>) -> usize {
+        *s + 1
     }
     #[rule(S ->)]
     fn s2() -> usize {
@@ -54,8 +54,10 @@ Run it:
 ```rust
 let mut lexer = Token::lexer("aaa");
 let mut parser = Parser {};
-let res = parser.parse(&mut lexer);
-assert_eq!(res, [3]);
+let res = parser.parse(&mut lexer).unwrap();
+// res is a StreamingIterator
+let vec: Vec<usize> = res.cloned().collect();
+assert_eq!(res, vec![3]);
 ```
 
 ## Example
@@ -93,15 +95,15 @@ Code snippet:
 #[gll(S, Token)]
 impl Parser {
     #[rule(S -> Ta)]
-    fn s1(a: LogosToken<Token>) -> usize {
+    fn s1(_a: &LogosToken<Token>) -> usize {
         1
     }
     #[rule(S -> S S)]
-    fn s2(s1: usize, s2: usize) -> usize {
+    fn s2(s1: &usize, s2: &usize) -> usize {
         s1 + s2
     }
     #[rule(S -> S S S)]
-    fn s3(s1: usize, s2: usize, s3: usize) -> usize {
+    fn s3(s1: &usize, s2: &usize, s3: &usize) -> usize {
         s1 + s2 + s3
     }
 }
@@ -114,6 +116,29 @@ impl Parser {
 ```
 
 See `tests/src/crazy.rs` for detail.
+
+## Changelog
+
+### Release 0.3.0 2019-11-15
+
+1. Return a struct that impls StreamingIterator to give derivations lazily.
+2. Implement memoization for shared structure of derivations.
+3. Turn all clone calls to reference to arena objects.
+4. Implement diagnostics to catch type mismatch errors.
+5. Make errors in user code reported with correct line numbers.
+
+### Release 0.2.1 2019-11-13
+
+1. Improve documentation.
+
+### Release 0.2.0 2019-11-13
+
+1. Allow access to struct fields.
+
+### Release 0.1.0 2019-11-12
+
+1. Initial working version.
+2. The parser recursively clone & collect all possible derivations.
 
 
 ## References

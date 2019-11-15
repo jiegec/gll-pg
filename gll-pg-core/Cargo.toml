@@ -1,6 +1,6 @@
 [package]
 name = "gll-pg-core"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["Jiajie Chen <noc@jiegec.ac.cn>"]
 edition = "2018"
 description = "A parser generator for GLL grammar, core library"
@@ -15,5 +15,4 @@ license = "MIT"
 [dependencies]
 petgraph = "0.4"
 logos = "0.9"
-typed-arena = "1.7"
 streaming-iterator = "0.1"

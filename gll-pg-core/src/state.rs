@@ -9,8 +9,6 @@ use petgraph::{
 use std::collections::{BTreeMap, BTreeSet};
 /// Re-exported `streaming_iterator` structs to avoid requiring dependency of generated code on it.
 pub use streaming_iterator::StreamingIterator;
-/// Re-exported `typed_arena` structs to avoid requiring dependency of generated code on it.
-pub use typed_arena::Arena;
 
 /// GSS Node Label Type
 pub type GSSNode<L> = (L, usize);
