@@ -7,6 +7,7 @@ use std::fmt::Write as FmtWrite;
 use std::fs::File;
 use std::io::Write;
 use syn;
+use syn::spanned::Spanned;
 
 #[derive(Default)]
 struct GenConfig {
@@ -91,6 +92,7 @@ fn gen_template(
     let parser_def = parser_type.into_token_stream().to_string();
     let mut rules = vec![];
     let mut start_type = String::from("()");
+    let mut type_mapping: HashMap<String, String> = HashMap::new();
     for item in &parser_impl.items {
         if let syn::ImplItem::Method(method) = item {
             let attr = method.attrs.get(0).unwrap();
@@ -108,6 +110,24 @@ fn gen_template(
                 syn::ReturnType::Type(_, ty) => ty.into_token_stream().to_string(),
                 syn::ReturnType::Default => String::from("()"),
             };
+
+            // type checking
+            if let Some(ty) = type_mapping.get(&lhs) {
+                if *ty != lhs_ty {
+                    method
+                        .sig
+                        .span()
+                        .unwrap()
+                        .error(format!(
+                            "Non-terminal {} has conflicting return types of {} and {}",
+                            lhs, ty, lhs_ty
+                        ))
+                        .emit();
+                }
+            } else {
+                type_mapping.insert(lhs.clone(), lhs_ty.clone());
+            }
+
             match rule_split.next() {
                 Some("->") => {}
                 _ => panic!(
@@ -144,6 +164,36 @@ fn gen_template(
             });
         } else {
             panic!("Impl block of gll should only contain methods.");
+        }
+    }
+
+    for (method, rule) in parser_impl
+        .items
+        .iter()
+        .filter_map(|item| {
+            if let syn::ImplItem::Method(method) = item {
+                Some(method)
+            } else {
+                None
+            }
+        })
+        .zip(rules.iter())
+    {
+        for ((name, arg), prod) in rule.arg.iter().zip(rule.prod.iter()) {
+            if let Some(ty) = type_mapping.get(prod) {
+                let expected = format!("& {}", ty);
+                if *arg != expected {
+                    method
+                        .sig
+                        .span()
+                        .unwrap()
+                        .error(format!(
+                            "Argument {} should have type {} instead of {}",
+                            name, expected, arg
+                        ))
+                        .emit();
+                }
+            }
         }
     }
 
@@ -783,12 +833,7 @@ fn gen_template(
     AhoCorasick::new(&pattern).replace_all(template, &replace)
 }
 
-fn gen_string(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> String {
-    // handle attrs
-    let parser_impl = match syn::parse::<syn::ItemImpl>(input) {
-        Ok(parser_impl) => parser_impl,
-        Err(_) => panic!("Attribute `gll` can only be applied to an impl block."),
-    };
+fn gen_string(attr: proc_macro::TokenStream, parser_impl: syn::ItemImpl) -> String {
     let mut iter = attr.clone().into_iter();
     let start_symbol = match iter.next() {
         Some(proc_macro::TokenTree::Ident(ident)) => ident.to_string(),
@@ -815,8 +860,8 @@ fn gen_string(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
 pub fn generate(
     attr: proc_macro::TokenStream,
-    input: proc_macro::TokenStream,
+    parser_impl: syn::ItemImpl,
 ) -> proc_macro::TokenStream {
-    let string = gen_string(attr, input);
+    let string = gen_string(attr, parser_impl);
     string.parse().unwrap()
 }

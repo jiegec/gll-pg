@@ -8,6 +8,8 @@ extern crate proc_macro;
 
 mod gen;
 
+use syn::{parse_macro_input, ItemImpl};
+
 /// The macro to generate a GLL parser.
 ///
 /// It should be used on a `impl` block with a lexer:
@@ -42,5 +44,6 @@ pub fn gll(
     attr: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(input as ItemImpl);
     gen::generate(attr, input)
 }
