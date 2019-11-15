@@ -122,15 +122,17 @@ fn gen_template(
             // type checking
             if let Some(ty) = type_mapping.get(&lhs) {
                 if *ty != lhs_ty {
-                    method
-                        .sig
-                        .span()
-                        .unwrap()
-                        .error(format!(
-                            "Non-terminal {} has conflicting return types of {} and {}",
-                            lhs, ty, lhs_ty
-                        ))
-                        .emit();
+                    let span = match &method.sig.output {
+                        syn::ReturnType::Default => method.sig.span(),
+                        syn::ReturnType::Type(_arrow, ty) => ty.span(),
+                    }
+                    .unwrap();
+                    span.error(format!(
+                        "non-terminal {} has conflicting return types of {} and {}",
+                        lhs, ty, lhs_ty
+                    ))
+                    .help(format!("change return type to {}", ty))
+                    .emit();
                 }
             } else {
                 type_mapping.insert(lhs.clone(), lhs_ty.clone());
@@ -176,7 +178,7 @@ fn gen_template(
         }
     }
 
-    for (method, rule) in parser_impl
+    for (_method, rule) in parser_impl
         .items
         .iter()
         .filter_map(|item| {
@@ -188,18 +190,18 @@ fn gen_template(
         })
         .zip(rules.iter())
     {
-        for ((name, arg, _pat), prod) in rule.arg.iter().zip(rule.prod.iter()) {
+        for ((name, arg, pat), prod) in rule.arg.iter().zip(rule.prod.iter()) {
             if let Some(ty) = type_mapping.get(prod) {
                 let expected = format!("& {}", ty);
                 if *arg != expected {
-                    method
-                        .sig
+                    pat.ty
                         .span()
                         .unwrap()
                         .error(format!(
-                            "Argument {} should have type {} instead of {}",
-                            name, expected, arg
+                            "argument {} should have type `&{}` instead of `{}`",
+                            name, ty, arg
                         ))
+                        .help(format!("change argument type to `&{}`", ty))
                         .emit();
                 }
             }
