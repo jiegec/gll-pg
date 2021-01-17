@@ -6,19 +6,18 @@ use logos::Logos;
 
 #[derive(Logos, Debug, Eq, PartialEq, Clone)]
 pub enum Token {
-    #[end]
     End,
     #[error]
     Error,
-    #[token = " "]
+    #[token(" ")]
     _Eps,
-    #[token = "a"]
+    #[token("a")]
     Ta,
-    #[token = "b"]
+    #[token("b")]
     Tb,
-    #[token = "c"]
+    #[token("c")]
     Tc,
-    #[token = "d"]
+    #[token("d")]
     Td,
 }
 

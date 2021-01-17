@@ -6,27 +6,26 @@ use logos::Logos;
 
 #[derive(Logos, Debug, Eq, PartialEq, Clone)]
 enum Token {
-    #[end]
     End,
     #[error]
     Error,
-    #[token = " "]
+    #[token(" ")]
     _Eps,
-    #[token = "+"]
+    #[token("+")]
     Add,
-    #[token = "-"]
+    #[token("-")]
     Sub,
-    #[token = "*"]
+    #[token("*")]
     Mul,
-    #[token = "/"]
+    #[token("/")]
     Div,
-    #[token = "%"]
+    #[token("%")]
     Mod,
-    #[token = "("]
+    #[token("(")]
     LPar,
-    #[token = ")"]
+    #[token(")")]
     RPar,
-    #[regex = "[0-9]+"]
+    #[regex("[0-9]+")]
     IntLit,
 }
 

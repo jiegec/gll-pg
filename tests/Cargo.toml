@@ -9,4 +9,4 @@ edition = "2018"
 [dependencies]
 gll-pg-macros = { path = "../gll-pg-macros" }
 gll-pg-core = { path = "../gll-pg-core" }
-logos = "0.9"
+logos = "0.11.4"

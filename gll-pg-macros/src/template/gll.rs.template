@@ -160,26 +160,27 @@ impl {parser_type} {
     /// Run generated GLL parser on lexer.
     /// Return all possible derivations as a streaming iterator.
     #[allow(unreachable_code)]
-    pub fn parse<'a>(&'a mut self, lexer: &'a mut logos::Lexer<{token}, {source}>) -> Option<gll_generated::ParseResult<'a>> {
+    pub fn parse<'a>(&'a mut self, lexer: &'a mut logos::Lexer<{token}>) -> Option<gll_generated::ParseResult<'a>> {
         use std::collections::{BTreeMap, BTreeSet};
         use gll_pg_core::*;
         use gll_generated::{Label, Symbol};
         use logos::Source;
         let mut input = vec![];
-        loop {
-            if lexer.token == {token}::_Eps {
-                lexer.advance();
+        while let Some(tok) = lexer.next() {
+            if tok == {token}::_Eps {
                 continue;
             }
             input.push(LogosToken {
-                kind: lexer.token.clone(),
+                kind: tok.clone(),
                 slice: lexer.slice(),
             });
-            if lexer.token == {token}::End {
-                break;
-            }
-            lexer.advance();
         }
+        // dummy end token
+        input.push(LogosToken {
+            kind: {token}::End,
+            slice: "",
+        });
+
         let m = input.len() - 1;
         let mut graph: Graph<GSSNode<gll_generated::Label>, SPPFNodeIndex, Directed> = Graph::new();
         let mut nodes = BTreeMap::new();

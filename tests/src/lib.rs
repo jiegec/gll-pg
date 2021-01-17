@@ -1,5 +1,4 @@
 #![feature(proc_macro_hygiene)]
-#![allow(duplicate_macro_exports)]
 #![allow(dead_code)]
 
 macro_rules! check_output {
