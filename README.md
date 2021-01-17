@@ -118,6 +118,10 @@ See `tests/src/crazy.rs` for detail.
 
 ## Changelog
 
+### Release 0.4.0 2021-01-17
+
+1. Migrate to Logos v0.11.
+
 ### Release 0.3.0 2019-11-15
 
 1. Return a struct that impls StreamingIterator to give derivations lazily.
