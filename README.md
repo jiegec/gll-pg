@@ -6,7 +6,7 @@ A Parser Generator for GLL parser. It uses Logos as lexer.
 
 Add to Cargo.toml:
 
-```
+```toml
 [dependencies]
 gll-pg-macros = "0.2"
 gll-pg-core = "0.2"
@@ -20,13 +20,12 @@ use logos::Logos;
 
 #[derive(Logos, Debug, Eq, PartialEq, Clone)]
 pub enum Token {
-    #[end]
     End, // must not change this
     #[error]
     Error,
-    #[token = " "]
+    #[token(" ")]
     _Eps, // must not change this, will be skipped
-    #[token = "a"]
+    #[token("a")]
     Ta,
 }
 ```
@@ -74,8 +73,8 @@ E -> ( E )
 E -> int
 ```
 
-For input "1 + 2 * 3", it gives [7, 9].
-For input "1 + (2 * -3)", it gives [-5].
+For input "1 + 2 \* 3", it gives [7, 9].
+For input "1 + (2 \* -3)", it gives [-5].
 
 See `tests/src/arith.rs` for detail.
 
@@ -139,7 +138,6 @@ See `tests/src/crazy.rs` for detail.
 
 1. Initial working version.
 2. The parser recursively clone & collect all possible derivations.
-
 
 ## References
 
