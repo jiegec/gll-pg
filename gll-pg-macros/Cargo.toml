@@ -14,7 +14,7 @@ license = "MIT"
 
 [dependencies]
 syn = { version = "1.0.58", features = ["extra-traits", "full"] }
-aho-corasick = "0.7"
+aho-corasick = "0.7.15"
 quote = "1.0.8"
 
 [lib]
