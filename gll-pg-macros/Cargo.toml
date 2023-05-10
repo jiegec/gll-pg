@@ -2,7 +2,7 @@
 name = "gll-pg-macros"
 version = "0.4.0"
 authors = ["Jiajie Chen <noc@jiegec.ac.cn>"]
-edition = "2018"
+edition = "2021"
 description = "A parser generator for GLL grammar, macros part"
 repository = "https://github.com/jiegec/gll-pg"
 categories = ["parsing"]
