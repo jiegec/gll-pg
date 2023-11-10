@@ -825,7 +825,9 @@ fn gen_template(
         &derive,
     ];
 
-    let str = AhoCorasick::new(&pattern).replace_all(template, &replace);
+    let str = AhoCorasick::new(&pattern)
+        .unwrap()
+        .replace_all(template, &replace);
     let mut stream: TokenStream = str.parse().unwrap();
     let mut parsers = TokenStream::new();
 
